@@ -29,7 +29,6 @@ export default function AdminWebDashboard() {
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
       <Card>
-        <Card.Title title="Dashboard" subtitle="Web" />
         <Card.Content>
           <Text>Fleet overview, alerts requiring attention, and KPIs go here.</Text>
           <Text variant="labelSmall">Urgent alerts: {urgentCount}</Text>

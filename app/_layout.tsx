@@ -12,7 +12,6 @@ import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/AppHeader';
-import { DevRoleSwitcher } from '@/components/DevRoleSwitcher';
 import { useColorScheme } from '@/components/useColorScheme';
 import { registerForNotificationsAsync } from '@/lib/notifications';
 import { useNotificationStore } from '@/store/notifications';
@@ -96,7 +95,7 @@ function RootLayoutNav() {
       <PaperProvider theme={paperTheme}>
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
           <View style={{ flex: 1 }}>
-            <AppHeader title="SecureStop" />
+            <AppHeader />
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="index" />
               <Stack.Screen name="(parent)" />
@@ -104,7 +103,6 @@ function RootLayoutNav() {
               <Stack.Screen name="(admin)" />
               <Stack.Screen name="+not-found" />
             </Stack>
-            <DevRoleSwitcher />
           </View>
         </ThemeProvider>
       </PaperProvider>

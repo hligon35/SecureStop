@@ -143,6 +143,7 @@ export default function AdminRoutesScreen() {
         style={{
           position: 'absolute',
           left: 12,
+          right: 12,
           bottom: carouselBottomOffset + carouselHeight + detailsGap,
           gap: 6,
         }}
@@ -151,31 +152,31 @@ export default function AdminRoutesScreen() {
           Details
         </Text>
 
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          <Card mode="outlined">
-            <Card.Content style={{ paddingVertical: 10 }}>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <Card mode="outlined" style={{ flex: 1 }}>
+            <Card.Content style={{ paddingVertical: 10, alignItems: 'center' }}>
               <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
                 Vehicles
               </Text>
-              <Text>{details.vehicleCount}</Text>
+              <Text style={{ textAlign: 'center' }}>{details.vehicleCount}</Text>
             </Card.Content>
           </Card>
 
-          <Card mode="outlined">
-            <Card.Content style={{ paddingVertical: 10 }}>
+          <Card mode="outlined" style={{ flex: 1 }}>
+            <Card.Content style={{ paddingVertical: 10, alignItems: 'center' }}>
               <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
                 Stops
               </Text>
-              <Text>{details.stopsCount}</Text>
+              <Text style={{ textAlign: 'center' }}>{details.stopsCount}</Text>
             </Card.Content>
           </Card>
 
-          <Card mode="outlined">
-            <Card.Content style={{ paddingVertical: 10 }}>
+          <Card mode="outlined" style={{ flex: 1 }}>
+            <Card.Content style={{ paddingVertical: 10, alignItems: 'center' }}>
               <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
                 Trip
               </Text>
-              <Text>{`${details.trip.timeLabel} / ${details.trip.distLabel}`}</Text>
+              <Text numberOfLines={1} style={{ textAlign: 'center' }}>{`${details.trip.timeLabel} / ${details.trip.distLabel}`}</Text>
             </Card.Content>
           </Card>
         </View>

@@ -11,7 +11,7 @@ import { roleRootPath } from '@/constants/routes';
 import { useAuthStore } from '@/store/auth';
 import { useLocationStore } from '@/store/location';
 
-export function DevRoleSwitcher() {
+export function DevRoleSwitcher(props: { inline?: boolean }) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const pathname = usePathname();
@@ -68,6 +68,62 @@ export function DevRoleSwitcher() {
     }
   }, [setVehicleLocation]);
 
+  const menu = (
+    <Menu
+      visible={open}
+      onDismiss={() => setOpen(false)}
+      anchor={
+        <IconButton
+          icon="account-switch"
+          size={22}
+          mode="contained"
+          accessibilityLabel="Developer role switcher"
+          onPress={() => setOpen((v) => !v)}
+        />
+      }
+    >
+      <Menu.Item
+        title={gpsBusy ? 'GPS snap (busy…) ' : 'GPS snap (one-time)'}
+        disabled={gpsBusy}
+        onPress={snapGpsOnce}
+        leadingIcon="crosshairs-gps"
+      />
+      <Menu.Item
+        title={`Demo mode: ON${demoFleetOverride === true ? ' ✓' : ''}`}
+        onPress={() => {
+          setOpen(false);
+          setDemoFleetOverride(true);
+        }}
+        leadingIcon="play-circle"
+      />
+      <Menu.Item
+        title={`${ROLE_LABEL.parent}${role === 'parent' ? ' ✓' : ''}`}
+        onPress={() => {
+          goToRole('parent');
+        }}
+        leadingIcon="account"
+      />
+      <Menu.Item
+        title={`${ROLE_LABEL.driver}${role === 'driver' ? ' ✓' : ''}`}
+        onPress={() => {
+          goToRole('driver');
+        }}
+        leadingIcon="steering"
+      />
+      <Menu.Item
+        title={`${ROLE_LABEL.admin}${role === 'admin' ? ' ✓' : ''}`}
+        onPress={() => {
+          goToRole('admin');
+        }}
+        leadingIcon="shield-account"
+      />
+    </Menu>
+  );
+
+  if (props.inline) {
+    return menu;
+  }
+
   return (
     <View
       pointerEvents="box-none"
@@ -81,55 +137,7 @@ export function DevRoleSwitcher() {
         elevation: 1000,
       }}
     >
-      <Menu
-        visible={open}
-        onDismiss={() => setOpen(false)}
-        anchor={
-          <IconButton
-            icon="account-switch"
-            size={22}
-            mode="contained"
-            accessibilityLabel="Developer role switcher"
-            onPress={() => setOpen((v) => !v)}
-          />
-        }
-      >
-        <Menu.Item
-          title={gpsBusy ? 'GPS snap (busy…) ' : 'GPS snap (one-time)'}
-          disabled={gpsBusy}
-          onPress={snapGpsOnce}
-          leadingIcon="crosshairs-gps"
-        />
-        <Menu.Item
-          title={`Demo mode: ON${demoFleetOverride === true ? ' ✓' : ''}`}
-          onPress={() => {
-            setOpen(false);
-            setDemoFleetOverride(true);
-          }}
-          leadingIcon="play-circle"
-        />
-        <Menu.Item
-          title={`${ROLE_LABEL.parent}${role === 'parent' ? ' ✓' : ''}`}
-          onPress={() => {
-            goToRole('parent');
-          }}
-          leadingIcon="account"
-        />
-        <Menu.Item
-          title={`${ROLE_LABEL.driver}${role === 'driver' ? ' ✓' : ''}`}
-          onPress={() => {
-            goToRole('driver');
-          }}
-          leadingIcon="steering"
-        />
-        <Menu.Item
-          title={`${ROLE_LABEL.admin}${role === 'admin' ? ' ✓' : ''}`}
-          onPress={() => {
-            goToRole('admin');
-          }}
-          leadingIcon="shield-account"
-        />
-      </Menu>
+      {menu}
     </View>
   );
 }

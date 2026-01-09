@@ -1,5 +1,5 @@
 import { ScrollView, View } from 'react-native';
-import { Avatar, Card, Divider, Switch, Text, useTheme } from 'react-native-paper';
+import { Avatar, Card, Switch, Text, useTheme } from 'react-native-paper';
 
 import { useAuthStore } from '@/store/auth';
 import { useNotificationStore } from '@/store/notifications';
@@ -57,8 +57,6 @@ export default function AdminSettingsScreen() {
                 <Avatar.Text size={36} label="C" />
               </View>
             </View>
-
-            <Divider style={{ marginTop: 12 }} />
           </View>
         </Card.Content>
       </Card>
