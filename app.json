@@ -4,7 +4,7 @@
     "slug": "SecureStop",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/icon.png",
     "scheme": "securestop",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
