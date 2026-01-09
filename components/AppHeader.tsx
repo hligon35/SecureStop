@@ -57,14 +57,14 @@ export function AppHeader(props: { title?: string }) {
       <View style={{ paddingTop: insets.top }}>
         <View
           style={{
-            height: 44,
+            height: 40,
             justifyContent: 'center',
             alignItems: 'center',
             paddingHorizontal: 16,
           }}
         >
           {role === 'admin' ? (
-            <View style={{ position: 'absolute', left: 8, top: 16, bottom: 0, justifyContent: 'center' }}>
+            <View style={{ position: 'absolute', left: 8, top: 12, bottom: 0, justifyContent: 'center' }}>
               <IconButton
                 icon="bell-alert"
                 mode="contained"
@@ -79,11 +79,11 @@ export function AppHeader(props: { title?: string }) {
             </View>
           ) : null}
 
-        <Text variant="titleMedium" style={{ marginTop: 2 }}>
-          {appTitle}
-        </Text>
+          <Text variant="titleMedium" style={{ marginTop: 2 }}>
+            {appTitle}
+          </Text>
 
-          <View style={{ position: 'absolute', right: 8, top: 16, bottom: 0, justifyContent: 'center' }}>
+          <View style={{ position: 'absolute', right: 8, top: 12, bottom: 0, justifyContent: 'center' }}>
             <DevRoleSwitcher variant="header" />
           </View>
         </View>

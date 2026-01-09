@@ -42,18 +42,18 @@ export default function AdminTabsLayout() {
       />
 
       <Tabs.Screen
-        name="scans"
-        options={{
-          title: 'Scans',
-          tabBarIcon: ({ color }) => <TabBarIcon name="qrcode-scan" color={color} />,
-        }}
-      />
-
-      <Tabs.Screen
         name="routes"
         options={{
           title: 'Routes',
           tabBarIcon: ({ color }) => <TabBarIcon name="map-marker-path" color={color} />,
+        }}
+      />
+
+      <Tabs.Screen
+        name="scans"
+        options={{
+          title: 'Scans',
+          tabBarIcon: ({ color }) => <TabBarIcon name="qrcode-scan" color={color} />,
         }}
       />
 

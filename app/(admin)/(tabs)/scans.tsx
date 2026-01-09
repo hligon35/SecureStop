@@ -1,7 +1,8 @@
+import { useMemo } from 'react';
 import { ScrollView, View } from 'react-native';
-import { Card, Divider, IconButton, List, Text, useTheme } from 'react-native-paper';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Card, Divider, List, Text, useTheme } from 'react-native-paper';
 
+import { VEHICLE_CAROUSEL_BOTTOM_OFFSET, VEHICLE_CAROUSEL_HEIGHT, VehicleCarousel } from '@/components/VehicleCarousel';
 import { useLocationStore } from '@/store/location';
 import { TripScanEvent, useTripStore } from '@/store/trip';
 
@@ -28,16 +29,16 @@ function formatTimestamp(ts: number) {
 
 export default function AdminScansScreen() {
   const theme = useTheme();
-  const insets = useSafeAreaInsets();
   const scans = useTripStore((s) => s.scans);
   const routeId = useTripStore((s) => s.routeId);
   const vehicleId = useTripStore((s) => s.vehicleId);
   const setVehicleId = useTripStore((s) => s.setVehicleId);
   const fleet = useLocationStore((s) => s.fleet);
 
-  const bottomPad = Math.min(insets.bottom, 14);
-  const tabBarHeight = 56 + bottomPad;
-  const carouselHeight = 68;
+  const carouselItems = useMemo(
+    () => fleet.map((v) => ({ id: v.id, label: String(v.badgeNumber) })),
+    [fleet]
+  );
 
   return (
     <View style={{ flex: 1 }}>
@@ -45,7 +46,7 @@ export default function AdminScansScreen() {
         contentContainerStyle={{
           padding: 16,
           gap: 12,
-          paddingBottom: 16 + tabBarHeight + carouselHeight,
+          paddingBottom: 16 + VEHICLE_CAROUSEL_HEIGHT + VEHICLE_CAROUSEL_BOTTOM_OFFSET,
         }}
       >
         <Card mode="outlined">
@@ -110,50 +111,12 @@ export default function AdminScansScreen() {
         </Card>
       </ScrollView>
 
-      {/* Vehicle icon carousel pinned above bottom tabs */}
-      <View
-        style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          bottom: tabBarHeight,
-          backgroundColor: theme.colors.surface,
-        }}
-      >
-        <Divider />
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{
-            paddingHorizontal: 10,
-            paddingVertical: 10,
-            gap: 10,
-            alignItems: 'center',
-          }}
-        >
-          {fleet.map((v) => {
-            const selected = v.id === vehicleId;
-            return (
-              <View key={v.id} style={{ alignItems: 'center', gap: 2 }}>
-                <IconButton
-                  icon="bus"
-                  size={18}
-                  mode="contained"
-                  containerColor={selected ? theme.colors.primaryContainer : theme.colors.surfaceVariant}
-                  style={{ margin: 0, width: 34, height: 34 }}
-                  accessibilityLabel={`Select vehicle ${v.badgeNumber}`}
-                  onPress={() => {
-                    setVehicleId(v.id);
-                  }}
-                />
-                <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                  {v.badgeNumber}
-                </Text>
-              </View>
-            );
-          })}
-        </ScrollView>
-      </View>
+      <VehicleCarousel
+        items={carouselItems}
+        activeId={vehicleId}
+        onSelect={setVehicleId}
+        getAccessibilityLabel={(item) => `Select bus ${item.label}`}
+      />
     </View>
   );
 }
