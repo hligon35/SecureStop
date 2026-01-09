@@ -2,7 +2,7 @@ import * as Location from 'expo-location';
 import { usePathname, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Platform, View } from 'react-native';
-import { IconButton, Menu } from 'react-native-paper';
+import { IconButton, Menu, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Role } from '@/constants/roles';
@@ -11,8 +11,9 @@ import { roleRootPath } from '@/constants/routes';
 import { useAuthStore } from '@/store/auth';
 import { useLocationStore } from '@/store/location';
 
-export function DevRoleSwitcher(props: { inline?: boolean }) {
+export function DevRoleSwitcher(props?: { variant?: 'floating' | 'header' }) {
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -31,6 +32,8 @@ export function DevRoleSwitcher(props: { inline?: boolean }) {
   // Hidden on web; constant on mobile (in dev).
   if (Platform.OS === 'web') return null;
   if (!devEnabled) return null;
+
+  const variant = props?.variant ?? 'floating';
 
   // Ensure the menu never gets "stuck" across route transitions.
   useEffect(() => {
@@ -75,9 +78,11 @@ export function DevRoleSwitcher(props: { inline?: boolean }) {
       anchor={
         <IconButton
           icon="account-switch"
-          size={22}
+          size={18}
           mode="contained"
+          containerColor={theme.colors.surfaceVariant}
           accessibilityLabel="Developer role switcher"
+          style={{ margin: 0, width: 34, height: 34 }}
           onPress={() => setOpen((v) => !v)}
         />
       }
@@ -120,7 +125,7 @@ export function DevRoleSwitcher(props: { inline?: boolean }) {
     </Menu>
   );
 
-  if (props.inline) {
+  if (variant === 'header') {
     return menu;
   }
 

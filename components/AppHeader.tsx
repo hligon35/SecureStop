@@ -48,50 +48,54 @@ export function AppHeader(props: { title?: string }) {
   const role = useAuthStore((s) => s.role);
   const segments = useSegments();
 
+  const appTitle = 'SecureStop';
   const screenTitle = props.title ?? getHeaderTitleFromSegments(segments);
-  const canOpenAlerts = role === 'admin';
 
   return (
     <View style={{ backgroundColor: theme.colors.surface }}>
+      {/* Top row: alerts | app title | dev */}
       <View style={{ paddingTop: insets.top }}>
         <View
           style={{
             height: 44,
-            flexDirection: 'row',
+            justifyContent: 'center',
             alignItems: 'center',
-            paddingHorizontal: 8,
+            paddingHorizontal: 16,
           }}
         >
-          <View style={{ width: 44, alignItems: 'center', justifyContent: 'space-around', paddingTop: 24 }}>
-            <IconButton
-              icon="bell-alert"
-              mode="contained"
-              size={20}
-              disabled={!canOpenAlerts}
-              containerColor={theme.colors.surfaceVariant}
-              accessibilityLabel={canOpenAlerts ? 'Open alerts' : 'Alerts (admin only)'}
-              onPress={() => {
-                if (!canOpenAlerts) return;
-                router.push('/(admin)/(tabs)/alerts');
-              }}
-            />
-          </View>
+          {role === 'admin' ? (
+            <View style={{ position: 'absolute', left: 8, top: 16, bottom: 0, justifyContent: 'center' }}>
+              <IconButton
+                icon="bell-alert"
+                mode="contained"
+                size={18}
+                containerColor={theme.colors.surfaceVariant}
+                accessibilityLabel="Open alerts"
+                style={{ margin: 0, width: 34, height: 34 }}
+                onPress={() => {
+                  router.push('/(admin)/(tabs)/alerts');
+                }}
+              />
+            </View>
+          ) : null}
 
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text variant="titleMedium">SecureStop</Text>
-          </View>
+        <Text variant="titleMedium" style={{ marginTop: 2 }}>
+          {appTitle}
+        </Text>
 
-          <View style={{ width: 44, alignItems: 'center', justifyContent: 'space-around', paddingTop: 24 }}>
-            <DevRoleSwitcher inline />
+          <View style={{ position: 'absolute', right: 8, top: 16, bottom: 0, justifyContent: 'center' }}>
+            <DevRoleSwitcher variant="header" />
           </View>
-        </View>
-
-        <View style={{ paddingBottom: 8, paddingTop: 2, alignItems: 'center' }}>
-          <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-            {screenTitle}
-          </Text>
         </View>
       </View>
+
+      {/* Second row: screen title */}
+      <View style={{ paddingHorizontal: 16, paddingBottom: 2, justifyContent: 'center', alignItems: 'center' }}>
+        <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center' }}>
+          {screenTitle}
+        </Text>
+      </View>
+
       <Divider />
     </View>
   );

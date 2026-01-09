@@ -23,6 +23,8 @@ type TripState = {
   endedAt?: number;
   currentStopIndex: number;
 
+  setVehicleId: (vehicleId: string) => void;
+
   scans: TripScanEvent[];
 
   addScan: (scan: Omit<TripScanEvent, 'id'> & { id?: string }) => void;
@@ -42,6 +44,8 @@ export const useTripStore = create<TripState>((set, get) => ({
   startedAt: undefined,
   endedAt: undefined,
   currentStopIndex: 0,
+
+  setVehicleId: (vehicleId) => set({ vehicleId }),
 
   scans: [
     {

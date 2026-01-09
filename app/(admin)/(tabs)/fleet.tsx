@@ -308,9 +308,9 @@ export default function AdminFleetScreen() {
   const indicatorColors = useMemo(
     () => ({
       // Status lights should be vivid and consistent across themes.
-      green: '#00D12C',
-      blue: '#007BFF',
-      red: '#FF2D2D',
+      green: '#00ff37',
+      blue: '#007bff',
+      red: '#ff0000',
       inactive: 'black',
     }),
     []
@@ -396,9 +396,9 @@ export default function AdminFleetScreen() {
   );
 
   return (
-    <View style={{ flex: 1, paddingTop: 16 }}>
-      <View style={{ paddingHorizontal: 16, alignItems: 'center', gap: 8 }}>
-        <Text variant="titleSmall" style={{ textAlign: 'center' }}>
+    <View style={{ flex: 1, paddingTop: 6 }}>
+      <View style={{ paddingHorizontal: 16, paddingBottom: 6, alignItems: 'stretch', gap: 6 }}>
+        <Text variant="titleSmall" style={{ textAlign: 'left' }}>
           Fleet Overview
         </Text>
         <Divider style={{ alignSelf: 'stretch' }} />

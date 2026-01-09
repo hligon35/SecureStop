@@ -32,13 +32,12 @@ export default function AdminScansScreen() {
   const scans = useTripStore((s) => s.scans);
   const routeId = useTripStore((s) => s.routeId);
   const vehicleId = useTripStore((s) => s.vehicleId);
-
+  const setVehicleId = useTripStore((s) => s.setVehicleId);
   const fleet = useLocationStore((s) => s.fleet);
 
-  // Keep in sync with admin tab bar sizing.
   const bottomPad = Math.min(insets.bottom, 14);
   const tabBarHeight = 56 + bottomPad;
-  const carouselHeight = 72;
+  const carouselHeight = 68;
 
   return (
     <View style={{ flex: 1 }}>
@@ -46,7 +45,7 @@ export default function AdminScansScreen() {
         contentContainerStyle={{
           padding: 16,
           gap: 12,
-          paddingBottom: 16 + carouselHeight + tabBarHeight,
+          paddingBottom: 16 + tabBarHeight + carouselHeight,
         }}
       >
         <Card mode="outlined">
@@ -71,28 +70,19 @@ export default function AdminScansScreen() {
                           </Text>
                           <Text>{formatScanCategory(scan.category)}</Text>
 
-                          <Text
-                            variant="labelSmall"
-                            style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}
-                          >
+                          <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}>
                             Driver
                           </Text>
                           <Text>{scan.driverName}</Text>
 
-                          <Text
-                            variant="labelSmall"
-                            style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}
-                          >
+                          <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}>
                             Trip
                           </Text>
                           <Text>
                             Route: {routeId} • Vehicle: {vehicleId}
                           </Text>
 
-                          <Text
-                            variant="labelSmall"
-                            style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}
-                          >
+                          <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}>
                             Stop index
                           </Text>
                           <Text>{scan.stopIndex ?? '—'}</Text>
@@ -120,6 +110,7 @@ export default function AdminScansScreen() {
         </Card>
       </ScrollView>
 
+      {/* Vehicle icon carousel pinned above bottom tabs */}
       <View
         style={{
           position: 'absolute',
@@ -133,25 +124,30 @@ export default function AdminScansScreen() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 10, paddingVertical: 8, gap: 8, alignItems: 'center' }}
+          contentContainerStyle={{
+            paddingHorizontal: 10,
+            paddingVertical: 10,
+            gap: 10,
+            alignItems: 'center',
+          }}
         >
           {fleet.map((v) => {
             const selected = v.id === vehicleId;
             return (
-              <View key={v.id} style={{ alignItems: 'center', width: 64 }}>
+              <View key={v.id} style={{ alignItems: 'center', gap: 2 }}>
                 <IconButton
                   icon="bus"
-                  mode={selected ? 'contained' : 'outlined'}
-                  size={22}
-                  containerColor={selected ? theme.colors.primaryContainer : undefined}
-                  iconColor={selected ? theme.colors.onPrimaryContainer : undefined}
-                  accessibilityLabel={`Vehicle ${v.id}`}
+                  size={18}
+                  mode="contained"
+                  containerColor={selected ? theme.colors.primaryContainer : theme.colors.surfaceVariant}
+                  style={{ margin: 0, width: 34, height: 34 }}
+                  accessibilityLabel={`Select vehicle ${v.badgeNumber}`}
                   onPress={() => {
-                    // Display-only carousel; selection is indicated by current trip vehicle.
+                    setVehicleId(v.id);
                   }}
                 />
-                <Text variant="labelSmall" numberOfLines={1} style={{ color: theme.colors.onSurfaceVariant }}>
-                  {v.id}
+                <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                  {v.badgeNumber}
                 </Text>
               </View>
             );

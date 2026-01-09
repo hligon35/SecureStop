@@ -86,11 +86,11 @@ export default function AdminRoutesScreen() {
 
   const carouselData = useMemo(() => [{ id: 'fleet', label: 'Fleet' }, ...fleet.map((v) => ({ id: v.id, label: String(v.badgeNumber) }))], [fleet]);
 
-  const carouselHeight = 75;
-  const detailsGap = 10;
+  const carouselHeight = 55;
+  const detailsGap = 8;
 
   // Place the carousel so its bottom sits exactly on the *top* edge of the tab bar.
-  const carouselBottomOffset = tabBarHeight;
+  const carouselBottomOffset = 8;
 
   const [detailsSectionHeight, setDetailsSectionHeight] = useState(0);
 
@@ -134,7 +134,7 @@ export default function AdminRoutesScreen() {
         {mapNode}
       </View>
 
-      {/* Details strip (minimized) */}
+      {/* Details Grid */}
       <View
         onLayout={(e) => {
           const next = Math.ceil(e.nativeEvent.layout.height);
@@ -142,9 +142,9 @@ export default function AdminRoutesScreen() {
         }}
         style={{
           position: 'absolute',
-          left: 12,
-          right: 12,
-          bottom: carouselBottomOffset + carouselHeight + detailsGap,
+          left: 6,
+          right: 6,
+          bottom: carouselBottomOffset + detailsGap + carouselHeight,
           gap: 6,
         }}
       >
@@ -182,7 +182,7 @@ export default function AdminRoutesScreen() {
         </View>
       </View>
 
-      {/* Carousel over the tab bar */}
+      {/* Vehicle Carousel */}
       <View
         style={{
           position: 'absolute',
@@ -190,20 +190,21 @@ export default function AdminRoutesScreen() {
           right: 0,
           bottom: carouselBottomOffset,
           height: carouselHeight,
-          paddingHorizontal: 12,
+          paddingHorizontal: 2,
           justifyContent: 'flex-end',
           alignItems: 'center',
-          paddingBottom: 0,
-          backgroundColor: theme.colors.background,
+          paddingVertical: 2.5,
+          backgroundColor: '#f0f0f000',
         }}
       >
+        {/* Carousel List */}
         <FlatList
           style={{ flexGrow: 0 }}
           horizontal
           data={carouselData}
           keyExtractor={(item) => item.id}
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: 10, alignItems: 'flex-end', paddingVertical: 0 }}
+          contentContainerStyle={{ gap: 4, alignItems: 'flex-end', paddingVertical: 0 }}
           renderItem={({ item }) => {
             const active = item.id === activeId;
             return (
@@ -213,11 +214,12 @@ export default function AdminRoutesScreen() {
                 accessibilityLabel={item.id === 'fleet' ? 'Fleet routes' : `Route for bus ${item.label}`}
                 style={{ alignItems: 'center' }}
               >
+                {/* Vehicle selector */}
                 <View
                   style={{
-                    width: 64,
-                    height: 64,
-                    borderRadius: 16,
+                    width: 50,
+                    height: 50,
+                    borderRadius: 14,
                     backgroundColor: theme.colors.surface,
                     borderWidth: active ? 2 : 1,
                     borderColor: active ? theme.colors.primary : theme.colors.outline,
@@ -225,8 +227,9 @@ export default function AdminRoutesScreen() {
                     justifyContent: 'center',
                   }}
                 >
-                  <Image source={BUS_ICON} style={{ width: 46, height: 46, resizeMode: 'contain' }} />
-                  <View style={{ position: 'absolute', bottom: 6, left: 0, right: 0, alignItems: 'center' }}>
+                  {/* Vehicle Icon */}
+                  <Image source={BUS_ICON} style={{ width: 40, height: 40, resizeMode: 'contain' }} />
+                  <View style={{ position: 'absolute', bottom: 10, left: 2, right: 0, alignItems: 'center' }}>
                     <Text variant="labelSmall" style={{ color: 'black' }}>
                       {item.label}
                     </Text>
