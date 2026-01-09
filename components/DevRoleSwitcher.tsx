@@ -20,6 +20,8 @@ export function DevRoleSwitcher() {
   const setRole = useAuthStore((s) => s.setRole);
 
   const setVehicleLocation = useLocationStore((s) => s.setVehicleLocation);
+  const demoFleetOverride = useLocationStore((s) => s.demoFleetOverride);
+  const setDemoFleetOverride = useLocationStore((s) => s.setDemoFleetOverride);
 
   const [open, setOpen] = useState(false);
   const [gpsBusy, setGpsBusy] = useState(false);
@@ -69,10 +71,17 @@ export function DevRoleSwitcher() {
   return (
     <View
       pointerEvents="box-none"
-      style={{ position: 'absolute', top: insets.top + 4, right: 8, zIndex: 1000 }}
+      style={{
+        position: 'absolute',
+        top: insets.top,
+        right: 8,
+        height: 44,
+        justifyContent: 'center',
+        zIndex: 1000,
+        elevation: 1000,
+      }}
     >
       <Menu
-        key={pathname}
         visible={open}
         onDismiss={() => setOpen(false)}
         anchor={
@@ -81,7 +90,7 @@ export function DevRoleSwitcher() {
             size={22}
             mode="contained"
             accessibilityLabel="Developer role switcher"
-            onPress={() => setOpen(true)}
+            onPress={() => setOpen((v) => !v)}
           />
         }
       >
@@ -90,6 +99,14 @@ export function DevRoleSwitcher() {
           disabled={gpsBusy}
           onPress={snapGpsOnce}
           leadingIcon="crosshairs-gps"
+        />
+        <Menu.Item
+          title={`Demo mode: ON${demoFleetOverride === true ? ' ✓' : ''}`}
+          onPress={() => {
+            setOpen(false);
+            setDemoFleetOverride(true);
+          }}
+          leadingIcon="play-circle"
         />
         <Menu.Item
           title={`${ROLE_LABEL.parent}${role === 'parent' ? ' ✓' : ''}`}

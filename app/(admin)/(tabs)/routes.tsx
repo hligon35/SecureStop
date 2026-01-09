@@ -1,23 +1,241 @@
-import { ScrollView } from 'react-native';
-import { Card, Text } from 'react-native-paper';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { useLocalSearchParams } from 'expo-router';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { FlatList, Image, Pressable, View } from 'react-native';
+import { Card, Text, useTheme } from 'react-native-paper';
+
+import { VehicleMap } from '@/components/VehicleMap';
+import type { LatLng, Stop } from '@/store/location';
+import { useLocationStore } from '@/store/location';
+
+const BUS_ICON = require('../../../assets/images/sbus.png');
+
+function routeDistanceKm(points: LatLng[]): number {
+  if (points.length < 2) return 0;
+  let total = 0;
+  for (let i = 1; i < points.length; i += 1) {
+    const a = points[i - 1];
+    const b = points[i];
+    const dLat = b.latitude - a.latitude;
+    const dLng = (b.longitude - a.longitude) * Math.cos(((a.latitude + b.latitude) / 2) * (Math.PI / 180));
+    const segmentKm = Math.sqrt(dLat * dLat + dLng * dLng) * 111;
+    total += segmentKm;
+  }
+  return total;
+}
+
+function formatTripSummary(params: { distanceKm: number; averageSpeedKph?: number }): { timeLabel: string; distLabel: string } {
+  const speed = Math.max(5, params.averageSpeedKph ?? 25);
+  const hours = params.distanceKm / speed;
+  const minutes = Math.max(1, Math.round(hours * 60));
+  const miles = params.distanceKm * 0.621371;
+  return {
+    timeLabel: `${minutes} min`,
+    distLabel: `${miles.toFixed(1)} mi`,
+  };
+}
 
 export default function AdminRoutesScreen() {
-  return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
-      <Card>
-        <Card.Title title="Routes" subtitle="Mobile (simplified)" />
-        <Card.Content>
-          <Text>Route summaries go here (assigned vehicles, schedules, stop counts).</Text>
-          <Text variant="labelSmall">Create/edit routes is targeted for the web dashboard.</Text>
-        </Card.Content>
-      </Card>
+  const theme = useTheme();
+  const tabBarHeight = useBottomTabBarHeight();
+  const fleet = useLocationStore((s) => s.fleet);
 
-      <Card>
-        <Card.Title title="Bulk Updates" subtitle="Placeholder" />
-        <Card.Content>
-          <Text>CSV upload and bulk edits are scaffolded for the web version.</Text>
-        </Card.Content>
-      </Card>
-    </ScrollView>
+  const params = useLocalSearchParams<{ vehicleId?: string }>();
+  const paramVehicleId = typeof params.vehicleId === 'string' ? params.vehicleId : undefined;
+
+  const [activeId, setActiveId] = useState<string>('fleet');
+
+  const didApplyInitialParam = useRef(false);
+  useEffect(() => {
+    if (didApplyInitialParam.current) return;
+    didApplyInitialParam.current = true;
+
+    if (!paramVehicleId) return;
+    if (!fleet.some((v) => v.id === paramVehicleId)) return;
+    setActiveId(paramVehicleId);
+  }, [fleet, paramVehicleId]);
+
+  const selectedVehicle = useMemo(() => fleet.find((v) => v.id === activeId), [activeId, fleet]);
+
+  const fleetRoutes = useMemo(() => fleet.map((v) => v.routePolyline).filter((r) => r.length > 1), [fleet]);
+
+  const fleetStartEndStops: Stop[] = useMemo(() => {
+    const stops: Stop[] = [];
+    for (const v of fleet) {
+      const first = v.stops[0];
+      const last = v.stops[v.stops.length - 1];
+      if (first) stops.push({ id: `${v.id}-start`, name: `${v.badgeNumber} Start`, coordinate: first.coordinate });
+      if (last) stops.push({ id: `${v.id}-end`, name: `${v.badgeNumber} End`, coordinate: last.coordinate });
+    }
+    return stops;
+  }, [fleet]);
+
+  const details = useMemo(() => {
+    if (activeId === 'fleet') {
+      const vehicleCount = fleet.length;
+      const stopsCount = fleet.reduce((acc, v) => acc + v.stops.length, 0);
+      const distanceKm = fleet.reduce((acc, v) => acc + routeDistanceKm(v.routePolyline), 0);
+      const trip = formatTripSummary({ distanceKm });
+      return { vehicleCount, stopsCount, trip };
+    }
+    if (!selectedVehicle) return { vehicleCount: 0, stopsCount: 0, trip: formatTripSummary({ distanceKm: 0 }) };
+    const distanceKm = routeDistanceKm(selectedVehicle.routePolyline);
+    const trip = formatTripSummary({ distanceKm });
+    return { vehicleCount: 1, stopsCount: selectedVehicle.stops.length, trip };
+  }, [activeId, fleet, selectedVehicle]);
+
+  const carouselData = useMemo(() => [{ id: 'fleet', label: 'Fleet' }, ...fleet.map((v) => ({ id: v.id, label: String(v.badgeNumber) }))], [fleet]);
+
+  const carouselHeight = 75;
+  const detailsGap = 10;
+
+  // Place the carousel so its bottom sits exactly on the *top* edge of the tab bar.
+  const carouselBottomOffset = tabBarHeight;
+
+  const [detailsSectionHeight, setDetailsSectionHeight] = useState(0);
+
+  const mapBottomPadding = useMemo(() => {
+    // Reserve space so the map visually ends above the Details strip + carousel + bottom nav.
+    return carouselBottomOffset + carouselHeight + detailsGap + detailsSectionHeight;
+  }, [carouselBottomOffset, carouselHeight, detailsGap, detailsSectionHeight]);
+
+  const mapNode = useMemo(() => {
+    const fallbackVehicle = fleet[0];
+    const fallbackCoord = fallbackVehicle?.vehicleLocation.coordinate ?? { latitude: 40.758, longitude: -73.9855 };
+
+    if (activeId === 'fleet') {
+      return (
+        <VehicleMap
+          mode="fleet"
+          vehicle={fallbackCoord}
+          route={[]}
+          stops={fleetStartEndStops}
+          fleetRoutes={fleetRoutes}
+        />
+      );
+    }
+
+    if (!selectedVehicle) {
+      return <VehicleMap vehicle={fallbackCoord} route={[]} stops={[]} />;
+    }
+
+    return (
+      <VehicleMap
+        vehicle={selectedVehicle.vehicleLocation.coordinate}
+        route={selectedVehicle.routePolyline}
+        stops={selectedVehicle.stops}
+      />
+    );
+  }, [activeId, fleet, fleetRoutes, fleetStartEndStops, selectedVehicle]);
+
+  return (
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      <View style={{ flex: 1, paddingBottom: mapBottomPadding }}>
+        {mapNode}
+      </View>
+
+      {/* Details strip (minimized) */}
+      <View
+        onLayout={(e) => {
+          const next = Math.ceil(e.nativeEvent.layout.height);
+          if (next !== detailsSectionHeight) setDetailsSectionHeight(next);
+        }}
+        style={{
+          position: 'absolute',
+          left: 12,
+          bottom: carouselBottomOffset + carouselHeight + detailsGap,
+          gap: 6,
+        }}
+      >
+        <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, marginLeft: 2 }}>
+          Details
+        </Text>
+
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          <Card mode="outlined">
+            <Card.Content style={{ paddingVertical: 10 }}>
+              <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                Vehicles
+              </Text>
+              <Text>{details.vehicleCount}</Text>
+            </Card.Content>
+          </Card>
+
+          <Card mode="outlined">
+            <Card.Content style={{ paddingVertical: 10 }}>
+              <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                Stops
+              </Text>
+              <Text>{details.stopsCount}</Text>
+            </Card.Content>
+          </Card>
+
+          <Card mode="outlined">
+            <Card.Content style={{ paddingVertical: 10 }}>
+              <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                Trip
+              </Text>
+              <Text>{`${details.trip.timeLabel} / ${details.trip.distLabel}`}</Text>
+            </Card.Content>
+          </Card>
+        </View>
+      </View>
+
+      {/* Carousel over the tab bar */}
+      <View
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: carouselBottomOffset,
+          height: carouselHeight,
+          paddingHorizontal: 12,
+          justifyContent: 'flex-end',
+          alignItems: 'center',
+          paddingBottom: 0,
+          backgroundColor: theme.colors.background,
+        }}
+      >
+        <FlatList
+          style={{ flexGrow: 0 }}
+          horizontal
+          data={carouselData}
+          keyExtractor={(item) => item.id}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 10, alignItems: 'flex-end', paddingVertical: 0 }}
+          renderItem={({ item }) => {
+            const active = item.id === activeId;
+            return (
+              <Pressable
+                onPress={() => setActiveId(item.id)}
+                accessibilityRole="button"
+                accessibilityLabel={item.id === 'fleet' ? 'Fleet routes' : `Route for bus ${item.label}`}
+                style={{ alignItems: 'center' }}
+              >
+                <View
+                  style={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: 16,
+                    backgroundColor: theme.colors.surface,
+                    borderWidth: active ? 2 : 1,
+                    borderColor: active ? theme.colors.primary : theme.colors.outline,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Image source={BUS_ICON} style={{ width: 46, height: 46, resizeMode: 'contain' }} />
+                  <View style={{ position: 'absolute', bottom: 6, left: 0, right: 0, alignItems: 'center' }}>
+                    <Text variant="labelSmall" style={{ color: 'black' }}>
+                      {item.label}
+                    </Text>
+                  </View>
+                </View>
+              </Pressable>
+            );
+          }}
+        />
+      </View>
+    </View>
   );
 }

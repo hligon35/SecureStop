@@ -21,6 +21,7 @@ export type FleetVehicle = {
   badgeNumber: number;
   driverName: string;
   status: TripStatus;
+  statusUpdatedAt: number;
   delayMinutes: number;
   vehicleLocation: VehicleLocation;
   routePolyline: LatLng[];
@@ -28,12 +29,14 @@ export type FleetVehicle = {
 };
 
 type LocationState = {
+  demoFleetOverride?: boolean;
   vehicleId: string;
   vehicleLocation: VehicleLocation;
   routePolyline: LatLng[];
   stops: Stop[];
   userStopId: string;
   fleet: FleetVehicle[];
+  setDemoFleetOverride: (next?: boolean) => void;
   setVehicleLocation: (next: VehicleLocation) => void;
   setFleetVehicleLocation: (vehicleId: string, next: VehicleLocation) => void;
   setFleetVehicleOperational: (vehicleId: string, next: { status: TripStatus; delayMinutes: number }) => void;
@@ -71,6 +74,7 @@ const mockFleet: FleetVehicle[] = [
     badgeNumber: 74,
     driverName: 'A. Johnson',
     status: 'On Route',
+    statusUpdatedAt: Date.now(),
     delayMinutes: 0,
     vehicleLocation: { coordinate: mockRoute[0], updatedAt: Date.now(), heading: 90 },
     routePolyline: mockRoute,
@@ -81,6 +85,7 @@ const mockFleet: FleetVehicle[] = [
     badgeNumber: 12,
     driverName: 'S. Rivera',
     status: 'On Route',
+    statusUpdatedAt: Date.now(),
     delayMinutes: 6,
     vehicleLocation: {
       coordinate: { latitude: mockRoute[0].latitude + 0.002, longitude: mockRoute[0].longitude - 0.002 },
@@ -95,6 +100,7 @@ const mockFleet: FleetVehicle[] = [
     badgeNumber: 33,
     driverName: 'M. Chen',
     status: 'In Depot',
+    statusUpdatedAt: Date.now(),
     delayMinutes: 0,
     vehicleLocation: {
       coordinate: { latitude: mockRoute[0].latitude - 0.002, longitude: mockRoute[0].longitude + 0.002 },
@@ -109,6 +115,7 @@ const mockFleet: FleetVehicle[] = [
     badgeNumber: 88,
     driverName: 'D. Patel',
     status: 'On Route',
+    statusUpdatedAt: Date.now(),
     delayMinutes: 0,
     vehicleLocation: {
       coordinate: { latitude: mockRoute[0].latitude + 0.0015, longitude: mockRoute[0].longitude + 0.0025 },
@@ -123,6 +130,7 @@ const mockFleet: FleetVehicle[] = [
     badgeNumber: 45,
     driverName: 'K. Brooks',
     status: 'On Route',
+    statusUpdatedAt: Date.now(),
     delayMinutes: 3,
     vehicleLocation: {
       coordinate: { latitude: mockRoute[0].latitude + 0.003, longitude: mockRoute[0].longitude + 0.001 },
@@ -137,6 +145,7 @@ const mockFleet: FleetVehicle[] = [
     badgeNumber: 19,
     driverName: 'R. Nguyen',
     status: 'On Route',
+    statusUpdatedAt: Date.now(),
     delayMinutes: 0,
     vehicleLocation: {
       coordinate: { latitude: mockRoute[0].latitude - 0.003, longitude: mockRoute[0].longitude - 0.001 },
@@ -151,6 +160,7 @@ const mockFleet: FleetVehicle[] = [
     badgeNumber: 52,
     driverName: 'L. Garcia',
     status: 'On Route',
+    statusUpdatedAt: Date.now(),
     delayMinutes: 9,
     vehicleLocation: {
       coordinate: { latitude: mockRoute[0].latitude - 0.001, longitude: mockRoute[0].longitude - 0.003 },
@@ -165,6 +175,7 @@ const mockFleet: FleetVehicle[] = [
     badgeNumber: 7,
     driverName: 'T. Williams',
     status: 'In Depot',
+    statusUpdatedAt: Date.now(),
     delayMinutes: 0,
     vehicleLocation: {
       coordinate: { latitude: mockRoute[0].latitude + 0.004, longitude: mockRoute[0].longitude - 0.0025 },
@@ -177,6 +188,7 @@ const mockFleet: FleetVehicle[] = [
 ];
 
 export const useLocationStore = create<LocationState>((set) => ({
+  demoFleetOverride: undefined,
   vehicleId: 'bus-12',
   vehicleLocation: {
     coordinate: mockRoute[0],
@@ -187,6 +199,7 @@ export const useLocationStore = create<LocationState>((set) => ({
   stops: mockStops,
   userStopId: 'stop-3',
   fleet: mockFleet,
+  setDemoFleetOverride: (next) => set({ demoFleetOverride: next }),
   setVehicleLocation: (next) => set({ vehicleLocation: next }),
   setFleetVehicleLocation: (vehicleId, next) =>
     set((state) => ({
@@ -194,7 +207,16 @@ export const useLocationStore = create<LocationState>((set) => ({
     })),
   setFleetVehicleOperational: (vehicleId, next) =>
     set((state) => ({
-      fleet: state.fleet.map((v) => (v.id === vehicleId ? { ...v, status: next.status, delayMinutes: next.delayMinutes } : v)),
+      fleet: state.fleet.map((v) => {
+        if (v.id !== vehicleId) return v;
+        const statusChanged = v.status !== next.status;
+        return {
+          ...v,
+          status: next.status,
+          delayMinutes: next.delayMinutes,
+          statusUpdatedAt: statusChanged ? Date.now() : v.statusUpdatedAt,
+        };
+      }),
     })),
   setUserStopId: (stopId) => set({ userStopId: stopId }),
 }));
