@@ -1,5 +1,5 @@
 import { ScrollView, View } from 'react-native';
-import { Avatar, Card, Switch, Text, useTheme } from 'react-native-paper';
+import { Card, Switch, Text, useTheme } from 'react-native-paper';
 
 import { useAuthStore } from '@/store/auth';
 import { useNotificationStore } from '@/store/notifications';
@@ -45,17 +45,6 @@ export default function AdminSettingsScreen() {
                 Phone
               </Text>
               <Text>{phone}</Text>
-            </View>
-
-            <View style={{ marginTop: 8 }}>
-              <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                Children
-              </Text>
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
-                <Avatar.Text size={36} label="A" />
-                <Avatar.Text size={36} label="B" />
-                <Avatar.Text size={36} label="C" />
-              </View>
             </View>
           </View>
         </Card.Content>
