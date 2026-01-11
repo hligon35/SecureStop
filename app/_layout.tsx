@@ -6,14 +6,20 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { MD3DarkTheme, MD3LightTheme, PaperProvider } from 'react-native-paper';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/AppHeader';
 import { useColorScheme } from '@/components/useColorScheme';
+import { getConfig } from '@/lib/config';
+import { startDriverForegroundTracking } from '@/lib/location/tracking';
 import { registerForNotificationsAsync } from '@/lib/notifications';
+import { registerExpoPushToken } from '@/lib/push/register';
+import { useAdminRegistryStore } from '@/store/adminRegistry';
+import { useAuthStore } from '@/store/auth';
+import { useIncidentsStore } from '@/store/incidents';
 import { useNotificationStore } from '@/store/notifications';
 import * as Notifications from 'expo-notifications';
 
@@ -60,12 +66,42 @@ function RootLayoutNav() {
 
   const setExpoPushToken = useNotificationStore((s) => s.setExpoPushToken);
   const receiveAlert = useNotificationStore((s) => s.receiveAlert);
+  const role = useAuthStore((s) => s.role);
+  const hydrateAuth = useAuthStore((s) => s.hydrate);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const hydrateNotifications = useNotificationStore((s) => s.hydrate);
+  const hydrateIncidents = useIncidentsStore((s) => s.hydrate);
+  const hydrateRegistry = useAdminRegistryStore((s) => s.hydrate);
+
+  useEffect(() => {
+    hydrateAuth().catch(() => {
+      // Ignore hydration failures in scaffold.
+    });
+    hydrateNotifications().catch(() => {
+      // Ignore hydration failures in scaffold.
+    });
+    hydrateIncidents().catch(() => {
+      // Ignore hydration failures in scaffold.
+    });
+    hydrateRegistry().catch(() => {
+      // Ignore hydration failures in scaffold.
+    });
+  }, [hydrateAuth, hydrateIncidents, hydrateNotifications, hydrateRegistry]);
 
   useEffect(() => {
     let mounted = true;
+    const cfg = getConfig();
     registerForNotificationsAsync()
       .then((token) => {
-        if (mounted) setExpoPushToken(token);
+        if (!mounted) return;
+        if (!token) return;
+
+        setExpoPushToken(token);
+        if (cfg.features.enablePushTokenRegistration) {
+          registerExpoPushToken({ token, platform: Platform.OS }).catch(() => {
+            // Backend may not exist yet.
+          });
+        }
       })
       .catch(() => {
         // Ignore for scaffold; permissions can be denied.
@@ -90,12 +126,31 @@ function RootLayoutNav() {
     };
   }, [receiveAlert, setExpoPushToken]);
 
+  useEffect(() => {
+    const cfg = getConfig();
+    if (!cfg.features.enableDriverGps) return;
+    if (role !== 'driver') return;
+
+    let handle: { stop: () => void } | undefined;
+    startDriverForegroundTracking({ postToBackend: true })
+      .then((h) => {
+        handle = h;
+      })
+      .catch(() => {
+        // Permission denied or unavailable.
+      });
+
+    return () => {
+      handle?.stop();
+    };
+  }, [role]);
+
   return (
     <SafeAreaProvider>
       <PaperProvider theme={paperTheme}>
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
           <View style={{ flex: 1 }}>
-            <AppHeader />
+            {isAuthenticated ? <AppHeader /> : null}
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="index" />
               <Stack.Screen name="(parent)" />

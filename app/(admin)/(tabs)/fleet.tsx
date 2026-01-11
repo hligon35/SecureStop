@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, FlatList, Image, Pressable, useWindowDimensions, View } from 'react-native';
-import { Card, Divider, IconButton, Text, TextInput, useTheme } from 'react-native-paper';
+import { Badge, Button, Card, Chip, Divider, IconButton, Modal, Portal, Text, TextInput, useTheme } from 'react-native-paper';
 
 import { useLocationStore } from '@/store/location';
 import { useNotificationStore } from '@/store/notifications';
@@ -167,6 +167,8 @@ export default function AdminFleetScreen() {
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | undefined>(undefined);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [fleetFilter, setFleetFilter] = useState<'all' | 'ok' | 'delay' | 'out'>('all');
   const chatAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -390,6 +392,21 @@ export default function AdminFleetScreen() {
       });
   }, [fleet, greenAlertsByVehicleId, redAlertsByVehicleId]);
 
+  const filteredGridData = useMemo(() => {
+    if (fleetFilter === 'all') return gridData;
+    return gridData.filter((v) => v.state === fleetFilter);
+  }, [fleetFilter, gridData]);
+
+  useEffect(() => {
+    if (!selectedVehicleId) return;
+    const stillVisible = filteredGridData.some((v) => v.id === selectedVehicleId);
+    if (stillVisible) return;
+
+    setSelectedVehicleId(undefined);
+    setDetailsOpen(false);
+    setChatOpen(false);
+  }, [filteredGridData, selectedVehicleId]);
+
   const selectedVehicle = useMemo(
     () => (selectedVehicleId ? fleet.find((v) => v.id === selectedVehicleId) : undefined),
     [fleet, selectedVehicleId]
@@ -398,14 +415,79 @@ export default function AdminFleetScreen() {
   return (
     <View style={{ flex: 1, paddingTop: 6 }}>
       <View style={{ paddingHorizontal: 16, paddingBottom: 6, alignItems: 'stretch', gap: 6 }}>
-        <Text variant="titleSmall" style={{ textAlign: 'left' }}>
-          Fleet Overview
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text variant="titleSmall" style={{ textAlign: 'left' }}>
+            Fleet Overview
+          </Text>
+
+          <View style={{ position: 'relative' }}>
+            <IconButton
+              icon="filter-variant"
+              mode="contained"
+              size={18}
+              containerColor={theme.colors.surfaceVariant}
+              accessibilityLabel="Filter fleet overview"
+              style={{ margin: 0, width: 34, height: 34 }}
+              onPress={() => setFilterOpen(true)}
+            />
+            {fleetFilter !== 'all' ? (
+              <Badge size={10} style={{ position: 'absolute', right: 2, top: 2, backgroundColor: theme.colors.primary }} />
+            ) : null}
+          </View>
+        </View>
         <Divider style={{ alignSelf: 'stretch' }} />
       </View>
 
+      <Portal>
+        <Modal
+          visible={filterOpen}
+          onDismiss={() => setFilterOpen(false)}
+          contentContainerStyle={{ margin: 16, borderRadius: 12, overflow: 'hidden', backgroundColor: theme.colors.surface }}
+        >
+          <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 12, gap: 10 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text variant="titleSmall">Filter fleet</Text>
+              <Button
+                compact
+                onPress={() => {
+                  setFleetFilter('all');
+                }}
+              >
+                Clear
+              </Button>
+            </View>
+
+            <Divider />
+
+            <View style={{ gap: 8 }}>
+              <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                Status
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                <Chip selected={fleetFilter === 'all'} onPress={() => setFleetFilter('all')}>
+                  All
+                </Chip>
+                <Chip selected={fleetFilter === 'ok'} onPress={() => setFleetFilter('ok')}>
+                  OK
+                </Chip>
+                <Chip selected={fleetFilter === 'delay'} onPress={() => setFleetFilter('delay')}>
+                  Delayed
+                </Chip>
+                <Chip selected={fleetFilter === 'out'} onPress={() => setFleetFilter('out')}>
+                  Out
+                </Chip>
+              </View>
+            </View>
+
+            <Button mode="contained" onPress={() => setFilterOpen(false)}>
+              Done
+            </Button>
+          </View>
+        </Modal>
+      </Portal>
+
       <FlatList
-        data={gridData}
+        data={filteredGridData}
         key={numColumns}
         numColumns={numColumns}
         keyExtractor={(item) => item.id}

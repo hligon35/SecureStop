@@ -2,6 +2,8 @@ import { create } from 'zustand';
 
 import type { Role } from '@/constants/roles';
 import { scheduleLocalAlertNotification } from '@/lib/notifications';
+import { getJson, setJson } from '@/lib/storage/kv';
+import { useIncidentsStore } from '@/store/incidents';
 
 type RecipientGroup = 'parents' | 'school' | 'driver' | 'both';
 
@@ -59,6 +61,8 @@ type NotificationState = {
   prefs: NotificationPrefs;
   inbox: AlertMessage[];
   driverRecipientSelection: RecipientGroup;
+  hydrated: boolean;
+  hydrate: () => Promise<void>;
   setExpoPushToken: (token?: string) => void;
   setPrefs: (next: Partial<NotificationPrefs>) => void;
   setDriverRecipientSelection: (recipients: RecipientGroup) => void;
@@ -72,6 +76,8 @@ type NotificationState = {
   }) => Promise<void>;
   sendAdminBroadcast: (params: { title: string; body: string; recipients: RecipientGroup; vehicleId?: string }) => Promise<void>;
 };
+
+const PREFS_KEY = 'securestop.notificationPrefs.v1';
 
 const alertTemplates: Record<string, { title: string; body: string; severity: AlertSeverity }> = {
   // Green
@@ -163,10 +169,37 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   },
   inbox: [],
   driverRecipientSelection: 'parents',
+  hydrated: false,
+  hydrate: async () => {
+    const data = await getJson<{ prefs?: NotificationPrefs }>(PREFS_KEY);
+    const prefs = data?.prefs;
+    if (prefs) {
+      set({ prefs, hydrated: true });
+    } else {
+      set({ hydrated: true });
+    }
+  },
   setExpoPushToken: (token) => set({ expoPushToken: token }),
-  setPrefs: (next) => set({ prefs: { ...get().prefs, ...next } }),
+  setPrefs: (next) => {
+    const merged = { ...get().prefs, ...next };
+    set({ prefs: merged });
+    setJson(PREFS_KEY, { prefs: merged }).catch(() => {});
+  },
   setDriverRecipientSelection: (recipients) => set({ driverRecipientSelection: recipients }),
-  receiveAlert: (msg) => set({ inbox: [msg, ...get().inbox.filter((m) => m.id !== msg.id)].slice(0, 50) }),
+  receiveAlert: (msg) => {
+    // Create an incident record for high-severity alerts.
+    useIncidentsStore.getState().upsertFromAlert({
+      alertId: msg.id,
+      title: msg.title,
+      body: msg.body,
+      severity: msg.severity,
+      vehicleId: msg.vehicleId,
+      createdAt: msg.createdAt,
+      createdByRole: msg.createdByRole,
+    });
+
+    set({ inbox: [msg, ...get().inbox.filter((m) => m.id !== msg.id)].slice(0, 50) });
+  },
   removeAlertById: (id) => set({ inbox: get().inbox.filter((m) => m.id !== id) }),
   sendDriverAlert: async ({ templateId, recipients, notes, vehicleId }) => {
     const template = alertTemplates[templateId] ?? {
