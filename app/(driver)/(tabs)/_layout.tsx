@@ -30,7 +30,8 @@ export default function DriverTabsLayout() {
       <Tabs.Screen
         name="incident"
         options={{
-          title: 'Incident',
+          title: 'Report',
+          tabBarLabel: 'Report',
           tabBarIcon: ({ color }) => <TabBarIcon name="car-emergency" color={color} />,
         }}
       />

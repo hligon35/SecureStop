@@ -10,8 +10,6 @@ export default function DriverDelayScreen() {
 
   const sendDriverAlert = useNotificationStore((s) => s.sendDriverAlert);
 
-  const startTrip = useTripStore((s) => s.startTrip);
-  const setStatus = useTripStore((s) => s.setStatus);
   const vehicleId = useTripStore((s) => s.vehicleId);
 
   function severityButtonColor(sev: AlertSeverity) {
@@ -28,36 +26,20 @@ export default function DriverDelayScreen() {
   }
 
   const alertButtons: Array<{ id: string; label: string; severity: AlertSeverity }> = [
-    { id: 'departed_depot', label: 'Departed\nDepot', severity: 'green' },
-    { id: 'departed_school', label: 'Departed\nSchool', severity: 'green' },
-    { id: 'route_started', label: 'Route\nStarted', severity: 'green' },
+    { id: 'medical_emergency_onboard', label: 'Medical\nEmergency\nOnboard', severity: 'red' },
+    { id: 'passenger_injury', label: 'Passenger\nInjury', severity: 'red' },
+    { id: 'vehicle_accident_collision', label: 'Accident /\nCollision', severity: 'red' },
 
-    { id: 'minor_delay_traffic', label: 'Minor Delay\nTraffic', severity: 'yellow' },
-    { id: 'running_early', label: 'Running\nEarly', severity: 'yellow' },
-    { id: 'weather_delay', label: 'Weather\nDelay', severity: 'yellow' },
+    { id: 'bus_disabled_in_roadway', label: 'Bus Disabled\nIn Roadway', severity: 'red' },
+    { id: 'fire_smoke_detected', label: 'Fire / Smoke\nDetected', severity: 'red' },
+    { id: 'active_threat_security_concern', label: 'Active Threat\n/ Security', severity: 'red' },
 
-    { id: 'mechanical_issue', label: 'Mechanical\nIssue', severity: 'orange' },
-    { id: 'route_change', label: 'Route\nChange', severity: 'orange' },
-    { id: 'substitute_bus', label: 'Substitute\nBus', severity: 'orange' },
+    { id: 'child_left_on_bus_post_trip_check_failed', label: 'Child Left\nOn Bus', severity: 'red' },
+    { id: 'evacuation_in_progress', label: 'Evacuation\nIn Progress', severity: 'red' },
+    { id: 'severe_mechanical_failure_unsafe_to_drive', label: 'Severe\nMechanical\nFailure', severity: 'red' },
 
-    { id: 'emergency', label: 'Emergency', severity: 'red' },
-    { id: 'unsafe_situation', label: 'Unsafe\nSituation', severity: 'red' },
-    { id: 'contact_admin', label: 'Contact\nAdmin', severity: 'red' },
+    { id: 'lost_child_missing_passenger_at_stop', label: 'Lost Child /\nMissing Passenger\nAt Stop', severity: 'red' },
   ];
-
-  function applyStatusForAlert(templateId: string) {
-    switch (templateId) {
-      case 'departed_depot':
-      case 'departed_school':
-        setStatus('Departed');
-        return;
-      case 'route_started':
-        startTrip();
-        return;
-      default:
-        return;
-    }
-  }
 
   return (
     <View style={{ flex: 1 }}>
@@ -65,11 +47,11 @@ export default function DriverDelayScreen() {
         <Card>
           <Card.Content style={{ gap: 12 }}>
             <Text variant="titleMedium" style={{ textAlign: 'center' }}>
-              Push Alerts
+              Emergency Alerts
             </Text>
 
             <Text variant="labelSmall" style={{ textAlign: 'center' }}>
-              All alerts go to all users.
+              All alerts go to School/Admin.
             </Text>
 
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between' }}>
@@ -78,12 +60,11 @@ export default function DriverDelayScreen() {
                   key={b.id}
                   mode="contained"
                   buttonColor={severityButtonColor(b.severity)}
-                  style={{ width: '32%' }}
-                  contentStyle={{ paddingVertical: 6, paddingHorizontal: 0, height: 56 }}
+                  style={{ width: '48%' }}
+                  contentStyle={{ paddingVertical: 8, paddingHorizontal: 0, height: 82 }}
                   labelStyle={{ textAlign: 'center', marginHorizontal: 0, fontSize: 12, lineHeight: 14 }}
                   onPress={() => {
-                    applyStatusForAlert(b.id);
-                    sendDriverAlert({ templateId: b.id, recipients: 'both', vehicleId });
+                    sendDriverAlert({ templateId: b.id, recipients: 'school', vehicleId });
                   }}
                 >
                   {b.label}

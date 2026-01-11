@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import type { Role } from '@/constants/roles';
 import { scheduleLocalAlertNotification } from '@/lib/notifications';
 
-type RecipientGroup = 'parents' | 'school' | 'both';
+type RecipientGroup = 'parents' | 'school' | 'driver' | 'both';
 
 export type AlertSeverity = 'green' | 'yellow' | 'orange' | 'red';
 
@@ -29,11 +29,12 @@ function recipientsIncludeViewer(params: { recipients: RecipientGroup; viewerRol
   const { recipients, viewerRole } = params;
 
   if (recipients === 'both') return true;
-  if (viewerRole === 'admin') return recipients === 'school';
+  if (viewerRole === 'admin') return true;
   if (viewerRole === 'parent') return recipients === 'parents';
+  if (viewerRole === 'driver') return recipients === 'driver' || recipients === 'school';
 
-  // Driver screens are operational; show all in-app alerts by default.
-  return true;
+  // Fallback: be conservative.
+  return false;
 }
 
 function prefsAllowMessage(params: { msg: AlertMessage; prefs: NotificationPrefs }): boolean {
@@ -92,6 +93,65 @@ const alertTemplates: Record<string, { title: string; body: string; severity: Al
   emergency: { title: 'Emergency', body: 'Emergency reported. Follow instructions.', severity: 'red' },
   unsafe_situation: { title: 'Unsafe Situation', body: 'Unsafe situation reported. Updates to follow.', severity: 'red' },
   contact_admin: { title: 'Contact Admin', body: 'Please contact administration for details.', severity: 'red' },
+
+  // Driver report submission
+  driver_report_submitted: {
+    title: 'Driver Report Submitted',
+    body: 'A driver report was submitted. Review details in notes.',
+    severity: 'red',
+  },
+
+  // Driver emergency / safety alerts
+  medical_emergency_onboard: {
+    title: 'Medical Emergency Onboard',
+    body: 'Medical emergency reported onboard the vehicle. Emergency response may be required.',
+    severity: 'red',
+  },
+  passenger_injury: {
+    title: 'Passenger Injury',
+    body: 'Passenger injury reported. Please stand by for updates and instructions.',
+    severity: 'red',
+  },
+  vehicle_accident_collision: {
+    title: 'Vehicle Accident / Collision',
+    body: 'Accident/collision reported involving the vehicle. Emergency response may be required.',
+    severity: 'red',
+  },
+  bus_disabled_in_roadway: {
+    title: 'Bus Disabled in Roadway',
+    body: 'Vehicle is disabled in the roadway. Expect delays and possible reroute.',
+    severity: 'red',
+  },
+  fire_smoke_detected: {
+    title: 'Fire / Smoke Detected',
+    body: 'Fire or smoke detected. Emergency response may be required.',
+    severity: 'red',
+  },
+  active_threat_security_concern: {
+    title: 'Active Threat / Security Concern',
+    body: 'Active threat or security concern reported. Follow safety protocols immediately.',
+    severity: 'red',
+  },
+  child_left_on_bus_post_trip_check_failed: {
+    title: 'Child Left on Bus',
+    body: 'Post-trip check failed; a child may have been left on the bus. Immediate action required.',
+    severity: 'red',
+  },
+  evacuation_in_progress: {
+    title: 'Evacuation in Progress',
+    body: 'Evacuation is in progress. Follow emergency procedures.',
+    severity: 'red',
+  },
+  severe_mechanical_failure_unsafe_to_drive: {
+    title: 'Severe Mechanical Failure',
+    body: 'Severe mechanical failure reported. Vehicle may be unsafe to drive.',
+    severity: 'red',
+  },
+  lost_child_missing_passenger_at_stop: {
+    title: 'Lost Child / Missing Passenger at Stop',
+    body: 'A child/passenger is reported missing at a stop. Immediate action required.',
+    severity: 'red',
+  },
 };
 
 export const useNotificationStore = create<NotificationState>((set, get) => ({

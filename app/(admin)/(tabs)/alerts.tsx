@@ -84,6 +84,10 @@ export default function AdminAlertsScreen() {
                 <Text>School</Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <RadioButton value="driver" />
+                <Text>Driver</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <RadioButton value="both" />
                 <Text>Both</Text>
               </View>
@@ -112,7 +116,7 @@ export default function AdminAlertsScreen() {
         </Card.Content>
       </Card>
 
-      <AlertInbox inbox={filteredInbox} />
+      <AlertInbox inbox={filteredInbox} viewerRole="admin" />
     </ScrollView>
   );
 }

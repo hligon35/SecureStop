@@ -33,7 +33,7 @@ function getHeaderTitleFromSegments(segments: string[]) {
     alerts: 'Alerts',
     map: 'Dashboard',
     delay: 'Delay',
-    incident: 'Incident',
+    incident: 'Report',
     setup: 'Profile',
     dashboard: 'Dashboard',
     'live-map': 'Live Map',
@@ -78,7 +78,12 @@ export function AppHeader(props: { title?: string }) {
   }, [alertsLastSeenAt, startOfTodayTs, visibleInboxToday]);
 
   const appTitle = 'SecureStop';
-  const screenTitle = props.title ?? getHeaderTitleFromSegments(segments);
+  const screenTitle = useMemo(() => {
+    if (props.title) return props.title;
+    const last = segments[segments.length - 1];
+    if (role === 'admin' && last === 'settings') return 'Profile';
+    return getHeaderTitleFromSegments(segments);
+  }, [props.title, role, segments]);
 
   return (
     <View style={{ backgroundColor: theme.colors.surface }}>
@@ -136,20 +141,20 @@ export function AppHeader(props: { title?: string }) {
             }}
           >
             <DevRoleSwitcher variant="header" />
-            {role === 'admin' ? null : (
-              <IconButton
-                icon="account-circle"
-                mode="contained"
-                size={18}
-                containerColor={theme.colors.surfaceVariant}
-                accessibilityLabel="Open profile"
-                style={{ margin: 0, width: 34, height: 34 }}
-                onPress={() => {
-                  if (role === 'parent') router.push('/(parent)/(tabs)/setup');
-                  else if (role === 'driver') router.push('/(driver)/(tabs)/setup');
-                }}
-              />
-            )}
+
+            <IconButton
+              icon="account-circle"
+              mode="contained"
+              size={18}
+              containerColor={theme.colors.surfaceVariant}
+              accessibilityLabel="Open profile"
+              style={{ margin: 0, width: 34, height: 34 }}
+              onPress={() => {
+                if (role === 'admin') router.push('/(admin)/(tabs)/settings');
+                else if (role === 'parent') router.push('/(parent)/(tabs)/setup');
+                else if (role === 'driver') router.push('/(driver)/(tabs)/setup');
+              }}
+            />
           </View>
         </View>
       </View>
@@ -160,7 +165,7 @@ export function AppHeader(props: { title?: string }) {
           onDismiss={() => setAlertsOpen(false)}
           contentContainerStyle={{ margin: 16, borderRadius: 12, overflow: 'hidden' }}
         >
-          <AlertInbox inbox={visibleInboxToday} />
+          <AlertInbox inbox={visibleInboxToday} viewerRole={role} />
         </Modal>
       </Portal>
 

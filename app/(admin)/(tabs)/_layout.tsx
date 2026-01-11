@@ -13,7 +13,6 @@ export default function AdminTabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarSafeAreaInsets: { bottom: 0 },
         tabBarStyle: {
           backgroundColor: theme.colors.surface,
           height: 56 + bottomPad,
@@ -59,10 +58,7 @@ export default function AdminTabsLayout() {
 
       <Tabs.Screen
         name="settings"
-        options={{
-          title: 'Settings',
-          tabBarIcon: ({ color }) => <TabBarIcon name="cog" color={color} />,
-        }}
+        options={{ href: null }}
       />
 
       {/* Keep screens reachable via push buttons, but remove from bottom nav */}
