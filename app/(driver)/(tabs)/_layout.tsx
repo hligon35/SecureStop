@@ -8,8 +8,16 @@ export default function DriverTabsLayout() {
       <Tabs.Screen
         name="map"
         options={{
-          title: 'Map',
-          tabBarIcon: ({ color }) => <TabBarIcon name="map" color={color} />,
+          title: 'Dashboard',
+          tabBarIcon: ({ color }) => <TabBarIcon name="view-dashboard" color={color} />,
+        }}
+      />
+
+      <Tabs.Screen
+        name="scans"
+        options={{
+          title: 'Scans',
+          tabBarIcon: ({ color }) => <TabBarIcon name="qrcode-scan" color={color} />,
         }}
       />
       <Tabs.Screen
@@ -28,10 +36,7 @@ export default function DriverTabsLayout() {
       />
       <Tabs.Screen
         name="setup"
-        options={{
-          title: 'Setup',
-          tabBarIcon: ({ color }) => <TabBarIcon name="cog" color={color} />,
-        }}
+        options={{ href: null }}
       />
     </Tabs>
   );

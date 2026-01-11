@@ -1,15 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, View } from 'react-native';
-import { Card, Chip, ProgressBar, Text } from 'react-native-paper';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Easing, ScrollView, View } from 'react-native';
+import { Button, Card, Chip, ProgressBar, Text, useTheme } from 'react-native-paper';
 
 import { MapPanelLayout } from '@/components/MapPanelLayout';
 import { VehicleMap } from '@/components/VehicleMap';
-import { computeEtaMinutes } from '@/lib/eta';
 import { startMockVehicleFeed } from '@/lib/mock/locationFeed';
 import { useLocationStore } from '@/store/location';
+import { useNotificationStore } from '@/store/notifications';
 import { useTripStore } from '@/store/trip';
 
 export default function DriverMapScreen() {
+  const theme = useTheme();
   const vehicle = useLocationStore((s) => s.vehicleLocation.coordinate);
   const route = useLocationStore((s) => s.routePolyline);
   const stops = useLocationStore((s) => s.stops);
@@ -19,8 +20,13 @@ export default function DriverMapScreen() {
   const vehicleId = useTripStore((s) => s.vehicleId);
   const driverName = useTripStore((s) => s.driverName);
   const status = useTripStore((s) => s.status);
+  const startTrip = useTripStore((s) => s.startTrip);
+  const pauseTrip = useTripStore((s) => s.pauseTrip);
+  const endTrip = useTripStore((s) => s.endTrip);
   const currentStopIndex = useTripStore((s) => s.currentStopIndex);
   const setCurrentStopIndex = useTripStore((s) => s.setCurrentStopIndex);
+
+  const inbox = useNotificationStore((s) => s.inbox);
   
   const [panelWidth, setPanelWidth] = useState(0);
 
@@ -47,15 +53,128 @@ export default function DriverMapScreen() {
   }, [setCurrentStopIndex, stops, vehicle.latitude, vehicle.longitude]);
 
   const nextStop = stops[Math.min(stops.length - 1, currentStopIndex + 1)];
-  const etaToNext = nextStop ? computeEtaMinutes({ vehicle, stop: nextStop.coordinate }) : undefined;
   const progress = stops.length > 1 ? currentStopIndex / (stops.length - 1) : 0;
+
+  const pulse = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (status !== 'On Route') {
+      pulse.setValue(1);
+      return;
+    }
+
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 1.06,
+          duration: 550,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 550,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    animation.start();
+    return () => animation.stop();
+  }, [pulse, status]);
 
   const titleCentered = useMemo(() => ({ textAlign: 'center' as const }), []);
   const cardWidth = Math.max(0, panelWidth - 32);
 
+  const roadConditionUpdates = useMemo(() => {
+    const roadTemplateIds = new Set([
+      'minor_delay_traffic',
+      'weather_delay',
+      'mechanical_issue',
+      'route_change',
+      'substitute_bus',
+      'emergency',
+      'unsafe_situation',
+    ]);
+
+    const noteRegex = /(road|traffic|weather|accident|crash|closed|closure|detour)/i;
+
+    const items = inbox
+      .filter((m) => m.createdByRole === 'driver')
+      .filter((m) => {
+        if (m.templateId && roadTemplateIds.has(m.templateId)) return true;
+        return noteRegex.test(m.title) || noteRegex.test(m.body);
+      })
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, 3);
+
+    return items;
+  }, [inbox]);
+
+  const latestRoadUpdate = roadConditionUpdates[0];
+  const roadChipColor = useMemo(() => {
+    switch (latestRoadUpdate?.severity) {
+      case 'red':
+        return theme.colors.errorContainer;
+      case 'orange':
+        return theme.colors.secondaryContainer;
+      case 'yellow':
+        return theme.colors.tertiaryContainer;
+      default:
+        return theme.colors.surfaceVariant;
+    }
+  }, [latestRoadUpdate?.severity, theme.colors.errorContainer, theme.colors.secondaryContainer, theme.colors.surfaceVariant, theme.colors.tertiaryContainer]);
+
   return (
     <MapPanelLayout
-      map={<VehicleMap vehicle={vehicle} route={route} stops={stops} userStopId={nextStop?.id} />}
+      map={
+        <View style={{ flex: 1 }}>
+          <VehicleMap vehicle={vehicle} route={route} stops={stops} userStopId={nextStop?.id} />
+
+          <View
+            pointerEvents="box-none"
+            style={{
+              position: 'absolute',
+              right: 12,
+              bottom: 12,
+              flexDirection: 'row',
+              gap: 10,
+            }}
+          >
+            <Animated.View style={{ transform: [{ scale: pulse }] }}>
+              <Button
+                mode="contained"
+                buttonColor={status === 'On Route' ? theme.colors.tertiary : undefined}
+                textColor={status === 'On Route' ? theme.colors.onTertiary : undefined}
+                disabled={status === 'On Route' || status === 'Completed'}
+                onPress={startTrip}
+              >
+                {status === 'On Route' ? 'In Progress' : 'Start'}
+              </Button>
+            </Animated.View>
+
+            <Button
+              mode="contained"
+              buttonColor={status === 'Paused' ? theme.colors.secondary : undefined}
+              textColor={status === 'Paused' ? theme.colors.onSecondary : undefined}
+              disabled={status === 'Completed'}
+              onPress={pauseTrip}
+            >
+              {status === 'Paused' ? 'Idle' : 'Pause'}
+            </Button>
+
+            <Button
+              mode="contained"
+              buttonColor={status === 'Completed' ? theme.colors.tertiary : theme.colors.error}
+              textColor={status === 'Completed' ? theme.colors.onTertiary : theme.colors.onError}
+              disabled={status === 'Completed'}
+              onPress={endTrip}
+            >
+              {status === 'Completed' ? 'Complete' : 'End'}
+            </Button>
+          </View>
+        </View>
+      }
       panel={
         <View style={{ flex: 1 }} onLayout={(e) => setPanelWidth(e.nativeEvent.layout.width)}>
           <ScrollView
@@ -96,9 +215,9 @@ export default function DriverMapScreen() {
                   <Card mode="outlined" style={{ flex: 1 }}>
                     <Card.Content>
                       <Text variant="labelSmall" style={{ textAlign: 'center' }}>
-                        Driver
+                        Stop
                       </Text>
-                      <Text style={{ textAlign: 'center' }}>{driverName}</Text>
+                      <Text style={{ textAlign: 'center' }}>{stops.length ? String(currentStopIndex + 1) : '—'}</Text>
                     </Card.Content>
                   </Card>
                 </View>
@@ -107,35 +226,21 @@ export default function DriverMapScreen() {
                   <Text variant="labelSmall">Progress</Text>
                   <ProgressBar progress={progress} />
                 </View>
-              </Card.Content>
-            </Card>
 
-            <Card style={{ width: cardWidth }}>
-              <Card.Content>
-                <View style={{ alignItems: 'center', marginBottom: 12 }}>
-                  <Text variant="titleMedium" style={titleCentered}>
-                    Next
-                  </Text>
-                </View>
-
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <Card mode="outlined" style={{ flex: 1 }}>
-                    <Card.Content>
-                      <Text variant="labelSmall" style={{ textAlign: 'center' }}>
-                        Stop
-                      </Text>
-                      <Text style={{ textAlign: 'center' }}>{nextStop?.name ?? '—'}</Text>
-                    </Card.Content>
-                  </Card>
-                  <Card mode="outlined" style={{ flex: 1 }}>
-                    <Card.Content>
-                      <Text variant="labelSmall" style={{ textAlign: 'center' }}>
-                        ETA
-                      </Text>
-                      <Text style={{ textAlign: 'center' }}>{etaToNext ? `${etaToNext} min` : '—'}</Text>
-                    </Card.Content>
-                  </Card>
-                </View>
+                <Card mode="outlined" style={{ marginTop: 12 }}>
+                  <Card.Content style={{ gap: 8 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <Text variant="labelSmall">Road Conditions</Text>
+                      <Chip compact style={{ backgroundColor: roadChipColor }}>
+                        {latestRoadUpdate?.severity ? latestRoadUpdate.severity.toUpperCase() : 'OK'}
+                      </Chip>
+                    </View>
+                    <Text numberOfLines={1}>{latestRoadUpdate?.title ?? 'No updates'}</Text>
+                    <Text variant="bodySmall" numberOfLines={2} style={{ color: theme.colors.onSurfaceVariant }}>
+                      {latestRoadUpdate?.body ?? 'No live road condition alerts yet.'}
+                    </Text>
+                  </Card.Content>
+                </Card>
               </Card.Content>
             </Card>
           </ScrollView>

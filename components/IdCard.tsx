@@ -112,7 +112,7 @@ export function IdCard(props: Props) {
               }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                <MaterialCommunityIcons name={'stop-sign' as any} size={18} color={theme.colors.error} />
+                <MaterialCommunityIcons name={'stop-circle' as any} size={18} color={theme.colors.error} />
                 <Text variant="titleSmall">{props.person.stopNumber}</Text>
               </View>
               <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}>

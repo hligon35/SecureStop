@@ -21,7 +21,7 @@ export default function DriverIncidentScreen() {
 
           <Button
             mode="contained"
-            icon="car-crash"
+            icon="alert-octagon"
             contentStyle={{ height: 56, paddingHorizontal: 16 }}
             onPress={() =>
               sendDriverAlert({

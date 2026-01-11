@@ -1,14 +1,13 @@
-import { useEffect, useMemo } from 'react';
-import { ScrollView, View } from 'react-native';
-import { Card, Text } from 'react-native-paper';
-
-import { AlertInbox } from '@/components/AlertInbox';
 import { MapPanelLayout } from '@/components/MapPanelLayout';
 import { VehicleMap } from '@/components/VehicleMap';
 import { computeEtaMinutes } from '@/lib/eta';
 import { startMockVehicleFeed } from '@/lib/mock/locationFeed';
 import { useLocationStore } from '@/store/location';
 import { alertVisibleToViewer, useNotificationStore } from '@/store/notifications';
+import { useTripStore } from '@/store/trip';
+import { useEffect, useMemo } from 'react';
+import { View } from 'react-native';
+import { Avatar, Card, Text, useTheme } from 'react-native-paper';
 
 function milesBetween(
   a: { latitude: number; longitude: number },
@@ -27,11 +26,14 @@ function milesBetween(
 }
 
 export default function ParentMapScreen() {
+  const theme = useTheme();
   const vehicle = useLocationStore((s) => s.vehicleLocation.coordinate);
   const route = useLocationStore((s) => s.routePolyline);
   const stops = useLocationStore((s) => s.stops);
   const userStopId = useLocationStore((s) => s.userStopId);
   const setVehicleLocation = useLocationStore((s) => s.setVehicleLocation);
+
+  const driverName = useTripStore((s) => s.driverName);
 
   const inbox = useNotificationStore((s) => s.inbox);
   const prefs = useNotificationStore((s) => s.prefs);
@@ -86,39 +88,125 @@ export default function ParentMapScreen() {
     [inbox, prefs]
   );
 
+  const startOfTodayTs = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  }, []);
+
+  const visibleInboxToday = useMemo(
+    () => visibleInbox.filter((m) => (m.createdAt ?? 0) >= startOfTodayTs),
+    [startOfTodayTs, visibleInbox]
+  );
+
+  const busStatus = useMemo(() => {
+    const hasAlerts = visibleInboxToday.length > 0;
+    if (!hasAlerts) return { label: 'On schedule', kind: 'ok' as const };
+
+    if (typeof eta === 'number') return { label: `Delayed: ${eta} min`, kind: 'warn' as const };
+    return { label: 'Delayed', kind: 'warn' as const };
+  }, [eta, visibleInboxToday.length]);
+
+  const statusColors = useMemo(() => {
+    if (busStatus.kind === 'ok') {
+      return {
+        background: theme.dark ? '#14532d' : '#bbf7d0',
+        text: theme.dark ? '#dcfce7' : '#14532d',
+      };
+    }
+
+    return {
+      background: theme.dark ? '#713f12' : '#fef08a',
+      text: theme.dark ? '#fef9c3' : '#713f12',
+    };
+  }, [busStatus.kind, theme.dark]);
+
   return (
     <MapPanelLayout
       map={<VehicleMap vehicle={vehicle} route={route} stops={stops} userStopId={userStopId} />}
       panel={
-        <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
-          <View style={{ flexDirection: 'row', gap: 12 }}>
-            <Card mode="outlined" style={{ flex: 1 }}>
-              <Card.Content>
-                <Text variant="labelSmall" style={{ textAlign: 'center' }}>
-                  Stops til arrival
-                </Text>
-                <Text variant="titleMedium" style={{ textAlign: 'center' }}>
-                  {typeof stopsTilArrival === 'number' ? String(stopsTilArrival) : '—'}
-                </Text>
-              </Card.Content>
-            </Card>
-
-            <Card mode="outlined" style={{ flex: 1 }}>
-              <Card.Content>
-                <Text variant="labelSmall" style={{ textAlign: 'center' }}>
-                  ETA (min/mi)
-                </Text>
-                <Text variant="titleMedium" style={{ textAlign: 'center' }}>
-                  {etaMilesText}
-                </Text>
-              </Card.Content>
-            </Card>
+        <View style={{ flex: 1, paddingHorizontal: 12, paddingVertical: 0, gap: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+              Details
+            </Text>
           </View>
 
-          <View style={{ gap: 12 }}>
-            <AlertInbox inbox={visibleInbox} />
-          </View>
-        </ScrollView>
+          <Card>
+            <Card.Content style={{ gap: 10 }}>
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <Card mode="outlined" style={{ flex: 1 }}>
+                  <Card.Content>
+                    <Text variant="labelSmall" style={{ textAlign: 'center' }}>
+                      Stops til arrival
+                    </Text>
+                    <Text variant="titleMedium" style={{ textAlign: 'center' }}>
+                      {typeof stopsTilArrival === 'number' ? String(stopsTilArrival) : '—'}
+                    </Text>
+                  </Card.Content>
+                </Card>
+
+                <Card mode="outlined" style={{ flex: 1 }}>
+                  <Card.Content>
+                    <Text variant="labelSmall" style={{ textAlign: 'center' }}>
+                      ETA (min/mi)
+                    </Text>
+                    <Text variant="titleMedium" style={{ textAlign: 'center' }}>
+                      {etaMilesText}
+                    </Text>
+                  </Card.Content>
+                </Card>
+              </View>
+
+              <View
+                style={{
+                  position: 'relative',
+                  padding: 12,
+                  borderRadius: 12,
+                  backgroundColor: theme.colors.surfaceVariant,
+                }}
+              >
+                <View
+                  style={{
+                    position: 'absolute',
+                    right: 0,
+                    top: -2,
+                    paddingHorizontal: 10,
+                    paddingVertical: 2,
+                    borderRadius: 999,
+                    backgroundColor: statusColors.background,
+                  }}
+                >
+                  <Text variant="labelSmall" style={{ color: statusColors.text }}>
+                    {busStatus.label}
+                  </Text>
+                </View>
+
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <Avatar.Text
+                    size={44}
+                    label={(driverName || 'D')
+                      .split(' ')
+                      .filter(Boolean)
+                      .slice(0, 2)
+                      .map((part: string) => part[0]?.toUpperCase())
+                      .join('')}
+                    style={{ backgroundColor: theme.colors.primaryContainer }}
+                    color={theme.colors.onPrimaryContainer}
+                  />
+                  <View style={{ flex: 1, minWidth: 0, paddingRight: 64 }}>
+                    <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                      Driver
+                    </Text>
+                    <Text variant="titleMedium" numberOfLines={1}>
+                      {driverName || '—'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </Card.Content>
+          </Card>
+        </View>
       }
     />
   );
