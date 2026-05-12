@@ -1,17 +1,21 @@
-import * as Location from 'expo-location';
-import { usePathname, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { Platform, View } from 'react-native';
-import { IconButton, Menu, useTheme } from 'react-native-paper';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Location from "expo-location";
+import { usePathname, useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
+import { Platform, View } from "react-native";
+import { IconButton, Menu, useTheme } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import type { Role } from '@/constants/roles';
-import { ROLE_LABEL } from '@/constants/roles';
-import { roleRootPath } from '@/constants/routes';
-import { useAuthStore } from '@/store/auth';
-import { useLocationStore } from '@/store/location';
+import type { Role } from "@/constants/roles";
+import { ROLE_LABEL, ROLES } from "@/constants/roles";
+import { roleRootPath } from "@/constants/routes";
+import { getConfig } from "@/lib/config";
+import { useAuthStore } from "@/store/auth";
+import { useLocationStore } from "@/store/location";
 
-export function DevRoleSwitcher(props?: { variant?: 'floating' | 'header' }) {
+const DEV_SWITCHER_ROLES = Object.values(ROLES) as Role[];
+
+export function DevRoleSwitcher(props?: { variant?: "floating" | "header" }) {
+  const cfg = getConfig();
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const router = useRouter();
@@ -27,13 +31,12 @@ export function DevRoleSwitcher(props?: { variant?: 'floating' | 'header' }) {
   const [open, setOpen] = useState(false);
   const [gpsBusy, setGpsBusy] = useState(false);
 
-  const devEnabled = typeof __DEV__ !== 'undefined' ? __DEV__ : false;
+  const devEnabled = typeof __DEV__ !== "undefined" ? __DEV__ : false;
+  const demoAccessEnabled = devEnabled || cfg.features.enableDemoLogin;
 
-  // Hidden on web; constant on mobile (in dev).
-  if (Platform.OS === 'web') return null;
-  if (!devEnabled) return null;
+  if (!demoAccessEnabled) return null;
 
-  const variant = props?.variant ?? 'floating';
+  const variant = props?.variant ?? "floating";
 
   // Ensure the menu never gets "stuck" across route transitions.
   useEffect(() => {
@@ -50,7 +53,7 @@ export function DevRoleSwitcher(props?: { variant?: 'floating' | 'header' }) {
         router.replace(roleRootPath(nextRole));
       });
     },
-    [router, setRole]
+    [router, setRole],
   );
 
   const snapGpsOnce = useCallback(async () => {
@@ -58,11 +61,16 @@ export function DevRoleSwitcher(props?: { variant?: 'floating' | 'header' }) {
     setGpsBusy(true);
     try {
       const perm = await Location.requestForegroundPermissionsAsync();
-      if (perm.status !== 'granted') return;
+      if (perm.status !== "granted") return;
 
-      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const pos = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
       setVehicleLocation({
-        coordinate: { latitude: pos.coords.latitude, longitude: pos.coords.longitude },
+        coordinate: {
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+        },
         updatedAt: Date.now(),
         heading: pos.coords.heading ?? undefined,
       });
@@ -87,45 +95,42 @@ export function DevRoleSwitcher(props?: { variant?: 'floating' | 'header' }) {
         />
       }
     >
+      {devEnabled && Platform.OS !== "web" ? (
+        <Menu.Item
+          title={gpsBusy ? "GPS snap (busy…) " : "GPS snap (one-time)"}
+          disabled={gpsBusy}
+          onPress={snapGpsOnce}
+          leadingIcon="crosshairs-gps"
+        />
+      ) : null}
       <Menu.Item
-        title={gpsBusy ? 'GPS snap (busy…) ' : 'GPS snap (one-time)'}
-        disabled={gpsBusy}
-        onPress={snapGpsOnce}
-        leadingIcon="crosshairs-gps"
-      />
-      <Menu.Item
-        title={`Demo mode: ON${demoFleetOverride === true ? ' ✓' : ''}`}
+        title={`Demo mode: ON${demoFleetOverride === true ? " ✓" : ""}`}
         onPress={() => {
           setOpen(false);
           setDemoFleetOverride(true);
         }}
         leadingIcon="play-circle"
       />
-      <Menu.Item
-        title={`${ROLE_LABEL.parent}${role === 'parent' ? ' ✓' : ''}`}
-        onPress={() => {
-          goToRole('parent');
-        }}
-        leadingIcon="account"
-      />
-      <Menu.Item
-        title={`${ROLE_LABEL.driver}${role === 'driver' ? ' ✓' : ''}`}
-        onPress={() => {
-          goToRole('driver');
-        }}
-        leadingIcon="steering"
-      />
-      <Menu.Item
-        title={`${ROLE_LABEL.admin}${role === 'admin' ? ' ✓' : ''}`}
-        onPress={() => {
-          goToRole('admin');
-        }}
-        leadingIcon="shield-account"
-      />
+      {DEV_SWITCHER_ROLES.map((nextRole) => (
+        <Menu.Item
+          key={nextRole}
+          title={`${ROLE_LABEL[nextRole]}${role === nextRole ? " ✓" : ""}`}
+          onPress={() => {
+            goToRole(nextRole);
+          }}
+          leadingIcon={
+            nextRole === "parent"
+              ? "account"
+              : nextRole === "driver"
+                ? "steering"
+                : "shield-account"
+          }
+        />
+      ))}
     </Menu>
   );
 
-  if (variant === 'header') {
+  if (variant === "header") {
     return menu;
   }
 
@@ -133,11 +138,11 @@ export function DevRoleSwitcher(props?: { variant?: 'floating' | 'header' }) {
     <View
       pointerEvents="box-none"
       style={{
-        position: 'absolute',
+        position: "absolute",
         top: insets.top,
         right: 8,
         height: 44,
-        justifyContent: 'center',
+        justifyContent: "center",
         zIndex: 1000,
         elevation: 1000,
       }}

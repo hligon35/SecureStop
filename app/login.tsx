@@ -1,6 +1,6 @@
-import { Link, router } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { Link, router } from "expo-router";
+import { useMemo, useState } from "react";
+import { KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
 import {
     Button,
     Card,
@@ -10,28 +10,33 @@ import {
     Text,
     TextInput,
     useTheme,
-} from 'react-native-paper';
+} from "react-native-paper";
 
-import { ExternalLink } from '@/components/ExternalLink';
-import { ROLE_LABEL, type Role } from '@/constants/roles';
-import { signInWithOidcInteractive } from '@/lib/auth/oidc';
-import { getConfig } from '@/lib/config';
-import { useAuthStore } from '@/store/auth';
+import { ExternalLink } from "@/components/ExternalLink";
+import {
+    DEV_ACCOUNT_EMAIL,
+    DEV_ACCOUNT_PASSWORD,
+} from "@/constants/devAccount";
+import { ROLE_LABEL, type Role } from "@/constants/roles";
+import { signInWithOidcInteractive } from "@/lib/auth/oidc";
+import { getConfig } from "@/lib/config";
+import { useAuthStore } from "@/store/auth";
 
 export default function LoginScreen() {
   const theme = useTheme();
   const cfg = getConfig();
+  const demoLoginEnabled = __DEV__ || cfg.features.enableDemoLogin;
 
   const signInWithPassword = useAuthStore((s) => s.signInWithPassword);
   const signInWithOidcToken = useAuthStore((s) => s.signInWithOidcToken);
   const signInMock = useAuthStore((s) => s.signInMock);
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [snack, setSnack] = useState<string | null>(null);
 
-  // Password peek icon is intentionally dev-gated.
+  // Password peek icon is intentionally gated to demo/dev builds.
   const [devPeekEnabled, setDevPeekEnabled] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
 
@@ -46,9 +51,9 @@ export default function LoginScreen() {
     try {
       setLoading(true);
       await signInWithPassword({ email: email.trim(), password });
-      router.replace('/');
+      router.replace("/");
     } catch (e: any) {
-      setSnack(e?.message ? String(e.message) : 'Sign in failed');
+      setSnack(e?.message ? String(e.message) : "Sign in failed");
     } finally {
       setLoading(false);
     }
@@ -62,24 +67,31 @@ export default function LoginScreen() {
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
         idToken: tokens.idToken,
-        expiresAt: typeof tokens.expiresIn === 'number' ? Date.now() + tokens.expiresIn * 1000 : undefined,
+        expiresAt:
+          typeof tokens.expiresIn === "number"
+            ? Date.now() + tokens.expiresIn * 1000
+            : undefined,
       });
-      router.replace('/');
+      router.replace("/");
     } catch (e: any) {
-      setSnack(e?.message ? String(e.message) : 'SSO failed');
+      setSnack(e?.message ? String(e.message) : "SSO failed");
     } finally {
       setLoading(false);
     }
   }
 
   function devSignInAs(role: Role) {
-    signInMock({ role });
-    router.replace('/');
+    signInMock({
+      role,
+      email: DEV_ACCOUNT_EMAIL,
+      passwordMock: DEV_ACCOUNT_PASSWORD,
+    });
+    router.replace("/");
   }
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={{ flex: 1, backgroundColor: theme.colors.background }}
     >
       <ScrollView
@@ -87,19 +99,25 @@ export default function LoginScreen() {
         contentContainerStyle={{
           flexGrow: 1,
           padding: 16,
-          justifyContent: 'center',
-          alignItems: 'center',
+          justifyContent: "center",
+          alignItems: "center",
         }}
       >
-        <View style={{ width: '100%', maxWidth: 420 }}>
-          <View style={{ alignItems: 'center', marginBottom: 12 }}>
+        <View style={{ width: "100%", maxWidth: 420 }}>
+          <View style={{ alignItems: "center", marginBottom: 12 }}>
             <Text variant="headlineSmall">SecureStop</Text>
-            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
+            <Text
+              variant="bodySmall"
+              style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}
+            >
               Sign in to continue
             </Text>
           </View>
 
-          <Card mode="outlined" style={{ borderRadius: 16, overflow: 'hidden' }}>
+          <Card
+            mode="outlined"
+            style={{ borderRadius: 16, overflow: "hidden" }}
+          >
             <Card.Content style={{ gap: 12, paddingTop: 16 }}>
               <TextInput
                 mode="outlined"
@@ -122,28 +140,43 @@ export default function LoginScreen() {
                 right={
                   devPeekEnabled ? (
                     <TextInput.Icon
-                      icon={passwordVisible ? 'eye-off' : 'eye'}
-                      accessibilityLabel={passwordVisible ? 'Hide password' : 'Show password'}
+                      icon={passwordVisible ? "eye-off" : "eye"}
+                      accessibilityLabel={
+                        passwordVisible ? "Hide password" : "Show password"
+                      }
                       onPress={() => setPasswordVisible((v) => !v)}
                     />
                   ) : undefined
                 }
               />
 
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
                 <Link href="/forgot-password" asChild>
                   <Button mode="text" compact>
                     Forgot password?
                   </Button>
                 </Link>
 
-                {__DEV__ ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                      Dev
+                {demoLoginEnabled ? (
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <Text
+                      variant="labelSmall"
+                      style={{ color: theme.colors.onSurfaceVariant }}
+                    >
+                      Demo
                     </Text>
                     <IconButton
-                      icon={devPeekEnabled ? 'toggle-switch' : 'toggle-switch-off-outline'}
+                      icon={
+                        devPeekEnabled
+                          ? "toggle-switch"
+                          : "toggle-switch-off-outline"
+                      }
                       size={22}
                       accessibilityLabel="Developer options"
                       onPress={() => setDevPeekEnabled((v) => !v)}
@@ -163,25 +196,33 @@ export default function LoginScreen() {
               </Button>
 
               {oidcEnabled ? (
-                <Button mode="outlined" onPress={onSso} disabled={loading} contentStyle={{ height: 50 }}>
+                <Button
+                  mode="outlined"
+                  onPress={onSso}
+                  disabled={loading}
+                  contentStyle={{ height: 50 }}
+                >
                   Sign in with SSO
                 </Button>
               ) : null}
 
-              {__DEV__ && devPeekEnabled ? (
+              {demoLoginEnabled && devPeekEnabled ? (
                 <>
                   <Divider />
                   <View style={{ gap: 8 }}>
-                    <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                      Dev shortcuts
+                    <Text
+                      variant="labelSmall"
+                      style={{ color: theme.colors.onSurfaceVariant }}
+                    >
+                      Demo shortcuts
                     </Text>
 
-                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <View style={{ flexDirection: "row", gap: 8 }}>
                       <Button
                         mode="outlined"
                         onPress={() => {
-                          setEmail('admin@example.com');
-                          setPassword('password');
+                          setEmail(DEV_ACCOUNT_EMAIL);
+                          setPassword(DEV_ACCOUNT_PASSWORD);
                           setPasswordVisible(true);
                         }}
                         style={{ flex: 1 }}
@@ -191,8 +232,8 @@ export default function LoginScreen() {
                       <Button
                         mode="outlined"
                         onPress={() => {
-                          setEmail('');
-                          setPassword('');
+                          setEmail("");
+                          setPassword("");
                           setPasswordVisible(false);
                         }}
                         style={{ flex: 1 }}
@@ -201,9 +242,15 @@ export default function LoginScreen() {
                       </Button>
                     </View>
 
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                      {(['parent', 'driver', 'admin'] as const).map((r) => (
-                        <Button key={r} mode="contained-tonal" onPress={() => devSignInAs(r)}>
+                    <View
+                      style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}
+                    >
+                      {(["parent", "driver", "admin"] as const).map((r) => (
+                        <Button
+                          key={r}
+                          mode="contained-tonal"
+                          onPress={() => devSignInAs(r)}
+                        >
                           Demo: {ROLE_LABEL[r]}
                         </Button>
                       ))}
@@ -212,8 +259,17 @@ export default function LoginScreen() {
                 </>
               ) : null}
 
-              <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 4 }}>
-                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "center",
+                  marginTop: 4,
+                }}
+              >
+                <Text
+                  variant="bodySmall"
+                  style={{ color: theme.colors.onSurfaceVariant }}
+                >
                   Need an account?
                 </Text>
                 <Link href="/request-access" asChild>
@@ -225,19 +281,30 @@ export default function LoginScreen() {
             </Card.Content>
           </Card>
 
-          <View style={{ alignItems: 'center', marginTop: 14, gap: 6 }}>
-            <View style={{ flexDirection: 'row', gap: 16 }}>
-              <ExternalLink href="https://example.com/privacy">Privacy</ExternalLink>
-              <ExternalLink href="https://example.com/terms">Terms</ExternalLink>
+          <View style={{ alignItems: "center", marginTop: 14, gap: 6 }}>
+            <View style={{ flexDirection: "row", gap: 16 }}>
+              <ExternalLink href="https://example.com/privacy">
+                Privacy
+              </ExternalLink>
+              <ExternalLink href="https://example.com/terms">
+                Terms
+              </ExternalLink>
             </View>
-            <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, opacity: 0.7 }}>
+            <Text
+              variant="labelSmall"
+              style={{ color: theme.colors.onSurfaceVariant, opacity: 0.7 }}
+            >
               © {new Date().getFullYear()} SecureStop
             </Text>
           </View>
         </View>
 
-        <Snackbar visible={!!snack} onDismiss={() => setSnack(null)} duration={2600}>
-          {snack ?? ''}
+        <Snackbar
+          visible={!!snack}
+          onDismiss={() => setSnack(null)}
+          duration={2600}
+        >
+          {snack ?? ""}
         </Snackbar>
       </ScrollView>
     </KeyboardAvoidingView>

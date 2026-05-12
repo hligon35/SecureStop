@@ -1,9 +1,18 @@
-import { create } from 'zustand';
+import { create } from "zustand";
 
-import type { Role } from '@/constants/roles';
-import { api, configureApiAuthProviders } from '@/lib/api/client';
-import { clearSession, loadSession, saveSession, type StoredSession } from '@/lib/auth/sessionStorage';
-import { getJson, setJson } from '@/lib/storage/kv';
+import {
+    DEV_ACCOUNT_EMAIL,
+    DEV_ACCOUNT_PASSWORD,
+} from "@/constants/devAccount";
+import type { Role } from "@/constants/roles";
+import { api, configureApiAuthProviders } from "@/lib/api/client";
+import {
+    clearSession,
+    loadSession,
+    saveSession,
+    type StoredSession,
+} from "@/lib/auth/sessionStorage";
+import { getJson, setJson } from "@/lib/storage/kv";
 
 type StoredAuthProfile = {
   role: Role;
@@ -13,7 +22,7 @@ type StoredAuthProfile = {
   homeAddress: string;
 };
 
-const PROFILE_KEY = 'securestop.authProfile.v1';
+const PROFILE_KEY = "securestop.authProfile.v1";
 
 type AuthState = {
   isAuthenticated: boolean;
@@ -30,23 +39,32 @@ type AuthState = {
   hydrated: boolean;
   setRole: (role: Role) => void;
   setSchoolId: (schoolId: string) => void;
-  setAccount: (next: Partial<Pick<AuthState, 'email' | 'homeAddress' | 'passwordMock'>>) => void;
+  setAccount: (
+    next: Partial<Pick<AuthState, "email" | "homeAddress" | "passwordMock">>,
+  ) => void;
   setSession: (next?: StoredSession) => Promise<void>;
   hydrate: () => Promise<void>;
-  signInMock: (params?: Partial<Pick<AuthState, 'role' | 'userId' | 'schoolId'>>) => void;
-  signInWithPassword: (params: { email: string; password: string }) => Promise<void>;
+  signInMock: (
+    params?: Partial<
+      Pick<AuthState, "role" | "userId" | "schoolId" | "email" | "passwordMock">
+    >,
+  ) => void;
+  signInWithPassword: (params: {
+    email: string;
+    password: string;
+  }) => Promise<void>;
   signInWithOidcToken: (params: StoredSession) => Promise<void>;
   signOut: () => void;
 };
 
 export const useAuthStore = create<AuthState>((set) => ({
   isAuthenticated: false,
-  role: 'parent',
-  userId: 'mock-user',
-  schoolId: '',
-  email: 'driver@example.com',
-  homeAddress: '123 Main St',
-  passwordMock: '',
+  role: "parent",
+  userId: "mock-user",
+  schoolId: "",
+  email: DEV_ACCOUNT_EMAIL,
+  homeAddress: "123 Main St",
+  passwordMock: DEV_ACCOUNT_PASSWORD,
   accessToken: undefined,
   refreshToken: undefined,
   idToken: undefined,
@@ -107,11 +125,12 @@ export const useAuthStore = create<AuthState>((set) => ({
       idToken: session?.idToken,
       expiresAt: session?.expiresAt,
       isAuthenticated: session?.accessToken ? true : false,
-      role: profile?.role ?? 'parent',
-      userId: profile?.userId ?? 'mock-user',
-      schoolId: profile?.schoolId ?? '',
-      email: profile?.email ?? 'driver@example.com',
-      homeAddress: profile?.homeAddress ?? '123 Main St',
+      role: profile?.role ?? "parent",
+      userId: profile?.userId ?? "mock-user",
+      schoolId: profile?.schoolId ?? "",
+      email: profile?.email ?? DEV_ACCOUNT_EMAIL,
+      homeAddress: profile?.homeAddress ?? "123 Main St",
+      passwordMock: DEV_ACCOUNT_PASSWORD,
       hydrated: true,
     });
   },
@@ -120,9 +139,11 @@ export const useAuthStore = create<AuthState>((set) => ({
       const next = {
         ...s,
         isAuthenticated: true,
-        role: params?.role ?? 'parent',
-        userId: params?.userId ?? 'mock-user',
+        role: params?.role ?? "parent",
+        userId: params?.userId ?? "mock-user",
         schoolId: params?.schoolId ?? s.schoolId,
+        email: params?.email ?? DEV_ACCOUNT_EMAIL,
+        passwordMock: params?.passwordMock ?? DEV_ACCOUNT_PASSWORD,
       };
       setJson(PROFILE_KEY, {
         role: next.role,
@@ -134,12 +155,15 @@ export const useAuthStore = create<AuthState>((set) => ({
       return next;
     }),
   signInWithPassword: async ({ email, password }) => {
-    const res = await api.post('/auth/login', { email, password });
+    const res = await api.post("/auth/login", { email, password });
     const data = res.data as any;
     const accessToken: string | undefined = data?.accessToken;
-    if (!accessToken) throw new Error('Login did not return an access token');
+    if (!accessToken) throw new Error("Login did not return an access token");
 
-    const expiresAt = typeof data?.expiresIn === 'number' ? Date.now() + data.expiresIn * 1000 : undefined;
+    const expiresAt =
+      typeof data?.expiresIn === "number"
+        ? Date.now() + data.expiresIn * 1000
+        : undefined;
     await saveSession({
       accessToken,
       refreshToken: data?.refreshToken,
@@ -148,11 +172,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     });
 
     const nextProfile: StoredAuthProfile = {
-      role: (data?.role as Role) ?? 'parent',
-      userId: (data?.userId as string) ?? 'mock-user',
-      schoolId: (data?.schoolId as string) ?? '',
+      role: (data?.role as Role) ?? "parent",
+      userId: (data?.userId as string) ?? "mock-user",
+      schoolId: (data?.schoolId as string) ?? "",
       email,
-      homeAddress: (data?.homeAddress as string) ?? '123 Main St',
+      homeAddress: (data?.homeAddress as string) ?? "123 Main St",
     };
     await setJson(PROFILE_KEY, nextProfile);
 
@@ -188,7 +212,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       refreshToken: undefined,
       idToken: undefined,
       expiresAt: undefined,
-      schoolId: '',
+      schoolId: "",
     });
   },
 }));
