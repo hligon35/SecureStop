@@ -30,6 +30,13 @@ type StoredAuthProfile = {
 
 const PROFILE_KEY = "securestop.authProfile.v1";
 
+function isSeededDemoCredential(email: string, password: string) {
+  return (
+    email.trim().toLowerCase() === DEV_ACCOUNT_EMAIL.trim().toLowerCase() &&
+    password === DEV_ACCOUNT_PASSWORD
+  );
+}
+
 type AuthState = {
   isAuthenticated: boolean;
   role: Role;
@@ -161,6 +168,35 @@ export const useAuthStore = create<AuthState>((set) => ({
       return next;
     }),
   signInWithPassword: async ({ email, password }) => {
+    const cfg = getConfig();
+    if (
+      cfg.features.enableDemoLogin &&
+      isSeededDemoCredential(email, password)
+    ) {
+      set((s) => {
+        const next = {
+          ...s,
+          isAuthenticated: true,
+          role: s.role,
+          userId: s.userId,
+          schoolId: s.schoolId,
+          email: DEV_ACCOUNT_EMAIL,
+          passwordMock: DEV_ACCOUNT_PASSWORD,
+        };
+
+        setJson(PROFILE_KEY, {
+          role: next.role,
+          userId: next.userId,
+          schoolId: next.schoolId,
+          email: next.email,
+          homeAddress: next.homeAddress,
+        } satisfies StoredAuthProfile).catch(() => {});
+
+        return next;
+      });
+      return;
+    }
+
     if (isFirebaseConfigured()) {
       const credential = await signInWithFirebasePassword({ email, password });
       const idToken = await credential.user.getIdToken();
@@ -206,7 +242,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       return;
     }
 
-    const apiBaseUrl = getConfig().apiBaseUrl.trim();
+    const apiBaseUrl = cfg.apiBaseUrl.trim();
     if (!apiBaseUrl || apiBaseUrl.includes("example.invalid")) {
       throw new Error(
         "Neither Firebase nor EXPO_PUBLIC_API_BASE_URL is configured. Add Firebase env vars or a backend URL to .env and reload the app.",
