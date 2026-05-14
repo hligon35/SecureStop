@@ -1,5 +1,13 @@
 export type AppConfig = {
   apiBaseUrl: string;
+  firebase?: {
+    apiKey: string;
+    authDomain?: string;
+    projectId: string;
+    storageBucket?: string;
+    messagingSenderId?: string;
+    appId: string;
+  };
   tenants: Array<{ id: string; name: string }>;
   oidc?: {
     issuer?: string;
@@ -27,6 +35,15 @@ export function getConfig(): AppConfig {
   const apiBaseUrl = (
     process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://example.invalid/api"
   ).trim();
+  const firebaseApiKey = process.env.EXPO_PUBLIC_FIREBASE_API_KEY?.trim();
+  const firebaseAuthDomain =
+    process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN?.trim();
+  const firebaseProjectId = process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID?.trim();
+  const firebaseStorageBucket =
+    process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim();
+  const firebaseMessagingSenderId =
+    process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID?.trim();
+  const firebaseAppId = process.env.EXPO_PUBLIC_FIREBASE_APP_ID?.trim();
 
   const tenantsRaw = (process.env.EXPO_PUBLIC_TENANTS ?? "").trim();
   const tenants = (() => {
@@ -83,6 +100,17 @@ export function getConfig(): AppConfig {
 
   return {
     apiBaseUrl,
+    firebase:
+      firebaseApiKey && firebaseProjectId && firebaseAppId
+        ? {
+            apiKey: firebaseApiKey,
+            authDomain: firebaseAuthDomain,
+            projectId: firebaseProjectId,
+            storageBucket: firebaseStorageBucket,
+            messagingSenderId: firebaseMessagingSenderId,
+            appId: firebaseAppId,
+          }
+        : undefined,
     tenants,
     oidc:
       issuer || clientId || redirectUri

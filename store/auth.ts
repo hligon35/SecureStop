@@ -7,11 +7,17 @@ import {
 import type { Role } from "@/constants/roles";
 import { api, configureApiAuthProviders } from "@/lib/api/client";
 import {
+    isFirebaseConfigured,
+    signInWithFirebasePassword,
+    signOutFirebase,
+} from "@/lib/auth/firebase";
+import {
     clearSession,
     loadSession,
     saveSession,
     type StoredSession,
 } from "@/lib/auth/sessionStorage";
+import { getConfig } from "@/lib/config";
 import { getJson, setJson } from "@/lib/storage/kv";
 
 type StoredAuthProfile = {
@@ -155,6 +161,58 @@ export const useAuthStore = create<AuthState>((set) => ({
       return next;
     }),
   signInWithPassword: async ({ email, password }) => {
+    if (isFirebaseConfigured()) {
+      const credential = await signInWithFirebasePassword({ email, password });
+      const idToken = await credential.user.getIdToken();
+      const tokenResult = await credential.user.getIdTokenResult();
+      const expirationTime = tokenResult.expirationTime
+        ? new Date(tokenResult.expirationTime).getTime()
+        : undefined;
+
+      const nextProfile: StoredAuthProfile = {
+        role: (tokenResult.claims.role as Role | undefined) ?? "parent",
+        userId: credential.user.uid,
+        schoolId:
+          typeof tokenResult.claims.schoolId === "string"
+            ? tokenResult.claims.schoolId
+            : "",
+        email: credential.user.email ?? email,
+        homeAddress:
+          typeof tokenResult.claims.homeAddress === "string"
+            ? tokenResult.claims.homeAddress
+            : "123 Main St",
+      };
+
+      await saveSession({
+        accessToken: idToken,
+        refreshToken: credential.user.refreshToken,
+        idToken,
+        expiresAt: expirationTime,
+      });
+      await setJson(PROFILE_KEY, nextProfile);
+
+      set({
+        isAuthenticated: true,
+        email: nextProfile.email,
+        role: nextProfile.role,
+        userId: nextProfile.userId,
+        schoolId: nextProfile.schoolId,
+        homeAddress: nextProfile.homeAddress,
+        accessToken: idToken,
+        refreshToken: credential.user.refreshToken,
+        idToken,
+        expiresAt: expirationTime,
+      });
+      return;
+    }
+
+    const apiBaseUrl = getConfig().apiBaseUrl.trim();
+    if (!apiBaseUrl || apiBaseUrl.includes("example.invalid")) {
+      throw new Error(
+        "Neither Firebase nor EXPO_PUBLIC_API_BASE_URL is configured. Add Firebase env vars or a backend URL to .env and reload the app.",
+      );
+    }
+
     const res = await api.post("/auth/login", { email, password });
     const data = res.data as any;
     const accessToken: string | undefined = data?.accessToken;
@@ -205,6 +263,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
   signOut: () => {
     clearSession();
+    signOutFirebase().catch(() => {});
     setJson(PROFILE_KEY, undefined).catch(() => {});
     set({
       isAuthenticated: false,
