@@ -7,8 +7,12 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "update:internal": "eas update --channel internal",
-    "update:internal:clear": "eas update --channel internal --clear-cache"
+    "ios:build:internal": "eas build --platform ios --profile internal",
+    "ios:build:appstore": "eas build --platform ios --profile production",
+    "ios:submit:testflight": "eas submit --platform ios --profile production",
+    "ios:release:testflight": "eas build --platform ios --profile production --auto-submit",
+    "ota:publish:internal": "eas update --channel internal",
+    "ota:publish:internal:clear-cache": "eas update --channel internal --clear-cache"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

@@ -1,0 +1,36 @@
+npm warn deprecated rimraf@3.0.2: Rimraf versions prior to v4 are no longer supported
+npm warn cleanup Failed to remove some directories [
+npm warn cleanup   [
+npm warn cleanup     'C:\\Users\\Harold Ligon\\Desktop\\MyMobileApps\\SecureStop\\node_modules\\expo',
+npm warn cleanup     [Error: EPERM: operation not permitted, rmdir 'C:\Users\Harold Ligon\Desktop\MyMobileApps\SecureStop\node_modules\expo\node_modules\semver'] {
+npm warn cleanup       errno: -4048,
+npm warn cleanup       code: 'EPERM',
+npm warn cleanup       syscall: 'rmdir',
+npm warn cleanup       path: 'C:\\Users\\Harold Ligon\\Desktop\\MyMobileApps\\SecureStop\\node_modules\\expo\\node_modules\\semver'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\?\\C:\\Users\\Harold Ligon\\Desktop\\MyMobileApps\\SecureStop\\node_modules\\react-native',
+npm warn cleanup     [Error: ENOTEMPTY: directory not empty, rmdir 'C:\Users\Harold Ligon\Desktop\MyMobileApps\SecureStop\node_modules\react-native\Libraries\AppDelegate'] {
+npm warn cleanup       errno: -4051,
+npm warn cleanup       code: 'ENOTEMPTY',
+npm warn cleanup       syscall: 'rmdir',
+npm warn cleanup       path: 'C:\\Users\\Harold Ligon\\Desktop\\MyMobileApps\\SecureStop\\node_modules\\react-native\\Libraries\\AppDelegate'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     'C:\\Users\\Harold Ligon\\Desktop\\MyMobileApps\\SecureStop\\node_modules\\react-native',
+npm warn cleanup     [Error: ENOTEMPTY: directory not empty, rmdir 'C:\Users\Harold Ligon\Desktop\MyMobileApps\SecureStop\node_modules\react-native\React\CoreModules'] {
+npm warn cleanup       errno: -4051,
+npm warn cleanup       code: 'ENOTEMPTY',
+npm warn cleanup       syscall: 'rmdir',
+npm warn cleanup       path: 'C:\\Users\\Harold Ligon\\Desktop\\MyMobileApps\\SecureStop\\node_modules\\react-native\\React\\CoreModules'
+npm warn cleanup     }
+npm warn cleanup   ]
+npm warn cleanup ]
+npm error code ENOTEMPTY
+npm error syscall rmdir
+npm error path C:\Users\Harold Ligon\Desktop\MyMobileApps\SecureStop\node_modules\react-native\ReactCommon\react\renderer\scheduler
+npm error errno -4051
+npm error ENOTEMPTY: directory not empty, rmdir 'C:\Users\Harold Ligon\Desktop\MyMobileApps\SecureStop\node_modules\react-native\ReactCommon\react\renderer\scheduler'
+npm error A complete log of this run can be found in: C:\Users\Harold Ligon\AppData\Local\npm-cache\_logs\2026-05-14T03_42_06_037Z-debug-0.log
