@@ -5,6 +5,7 @@ import { Platform, View } from "react-native";
 import { IconButton, Menu, useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { DEV_ACCOUNT_EMAIL } from "@/constants/devAccount";
 import type { Role } from "@/constants/roles";
 import { ROLE_LABEL, ROLES } from "@/constants/roles";
 import { roleRootPath } from "@/constants/routes";
@@ -22,6 +23,8 @@ export function DevRoleSwitcher(props?: { variant?: "floating" | "header" }) {
   const pathname = usePathname();
 
   const role = useAuthStore((s) => s.role);
+  const email = useAuthStore((s) => s.email);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const setRole = useAuthStore((s) => s.setRole);
 
   const setVehicleLocation = useLocationStore((s) => s.setVehicleLocation);
@@ -32,7 +35,23 @@ export function DevRoleSwitcher(props?: { variant?: "floating" | "header" }) {
   const [gpsBusy, setGpsBusy] = useState(false);
 
   const devEnabled = typeof __DEV__ !== "undefined" ? __DEV__ : false;
-  const demoAccessEnabled = devEnabled || cfg.features.enableDemoLogin;
+  const demoFleetFlag = process.env.EXPO_PUBLIC_DEMO_FLEET;
+  const seededDemoAccess =
+    isAuthenticated &&
+    email.trim().toLowerCase() === DEV_ACCOUNT_EMAIL.trim().toLowerCase();
+  const demoAccessEnabled =
+    devEnabled ||
+    cfg.features.enableDemoLogin ||
+    role === "admin" ||
+    seededDemoAccess;
+  const demoModeEnabled =
+    demoFleetFlag === "true"
+      ? true
+      : demoFleetFlag === "false"
+        ? false
+        : typeof demoFleetOverride === "boolean"
+          ? demoFleetOverride
+          : !devEnabled;
 
   if (!demoAccessEnabled) return null;
 
@@ -47,11 +66,7 @@ export function DevRoleSwitcher(props?: { variant?: "floating" | "header" }) {
     (nextRole: Role) => {
       setOpen(false);
       setRole(nextRole);
-
-      // Defer navigation until after state + menu close apply.
-      requestAnimationFrame(() => {
-        router.replace(roleRootPath(nextRole));
-      });
+      router.replace(roleRootPath(nextRole));
     },
     [router, setRole],
   );
@@ -104,12 +119,14 @@ export function DevRoleSwitcher(props?: { variant?: "floating" | "header" }) {
         />
       ) : null}
       <Menu.Item
-        title={`Demo mode: ON${demoFleetOverride === true ? " ✓" : ""}`}
+        title={`Demo mode: ${demoModeEnabled ? "ON" : "OFF"}${typeof demoFleetOverride === "boolean" ? " ✓" : ""}`}
         onPress={() => {
           setOpen(false);
-          setDemoFleetOverride(true);
+          setDemoFleetOverride(!demoModeEnabled);
         }}
-        leadingIcon="play-circle"
+        leadingIcon={
+          demoModeEnabled ? "toggle-switch" : "toggle-switch-off-outline"
+        }
       />
       {DEV_SWITCHER_ROLES.map((nextRole) => (
         <Menu.Item

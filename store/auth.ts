@@ -37,6 +37,53 @@ function isSeededDemoCredential(email: string, password: string) {
   );
 }
 
+function isSeededDemoEmail(email: string) {
+  return email.trim().toLowerCase() === DEV_ACCOUNT_EMAIL.trim().toLowerCase();
+}
+
+function normalizeStoredProfile(profile?: StoredAuthProfile) {
+  if (!profile) return profile;
+  if (!isSeededDemoEmail(profile.email)) return profile;
+
+  return {
+    ...profile,
+    role: "admin" as const,
+    schoolId:
+      profile.schoolId.trim().length > 0 ? profile.schoolId : "mock-school",
+  } satisfies StoredAuthProfile;
+}
+
+function getHydratedProfile(
+  session: StoredSession | undefined,
+  profile: StoredAuthProfile | undefined,
+) {
+  if (profile) return profile;
+
+  if (!session?.accessToken) return profile;
+  if (!getConfig().features.enableDemoLogin) return profile;
+
+  return {
+    role: "admin" as const,
+    userId: "mock-user",
+    schoolId: "mock-school",
+    email: DEV_ACCOUNT_EMAIL,
+    homeAddress: "123 Main St",
+  } satisfies StoredAuthProfile;
+}
+
+function toFirebaseSignInErrorMessage(error: unknown) {
+  const code =
+    typeof error === "object" && error && "code" in error
+      ? String((error as { code?: unknown }).code ?? "")
+      : "";
+
+  if (code === "auth/configuration-not-found") {
+    return "Firebase email/password sign-in is not enabled for this project yet. Enable Email/Password in Firebase Authentication, or use the seeded demo credentials.";
+  }
+
+  return error;
+}
+
 type AuthState = {
   isAuthenticated: boolean;
   role: Role;
@@ -131,7 +178,16 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
   hydrate: async () => {
     const session = await loadSession();
-    const profile = await getJson<StoredAuthProfile>(PROFILE_KEY);
+    const storedProfile = await getJson<StoredAuthProfile>(PROFILE_KEY);
+    const profile = getHydratedProfile(
+      session,
+      normalizeStoredProfile(storedProfile),
+    );
+
+    if (profile && JSON.stringify(profile) !== JSON.stringify(storedProfile)) {
+      await setJson(PROFILE_KEY, profile);
+    }
+
     set({
       accessToken: session?.accessToken,
       refreshToken: session?.refreshToken,
@@ -169,17 +225,14 @@ export const useAuthStore = create<AuthState>((set) => ({
     }),
   signInWithPassword: async ({ email, password }) => {
     const cfg = getConfig();
-    if (
-      cfg.features.enableDemoLogin &&
-      isSeededDemoCredential(email, password)
-    ) {
+    if (isSeededDemoCredential(email, password)) {
       set((s) => {
         const next = {
           ...s,
           isAuthenticated: true,
-          role: s.role,
+          role: "admin" as const,
           userId: s.userId,
-          schoolId: s.schoolId,
+          schoolId: s.schoolId || "mock-school",
           email: DEV_ACCOUNT_EMAIL,
           passwordMock: DEV_ACCOUNT_PASSWORD,
         };
@@ -198,48 +251,64 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
 
     if (isFirebaseConfigured()) {
-      const credential = await signInWithFirebasePassword({ email, password });
-      const idToken = await credential.user.getIdToken();
-      const tokenResult = await credential.user.getIdTokenResult();
-      const expirationTime = tokenResult.expirationTime
-        ? new Date(tokenResult.expirationTime).getTime()
-        : undefined;
+      try {
+        const credential = await signInWithFirebasePassword({
+          email,
+          password,
+        });
+        const idToken = await credential.user.getIdToken();
+        const tokenResult = await credential.user.getIdTokenResult();
+        const expirationTime = tokenResult.expirationTime
+          ? new Date(tokenResult.expirationTime).getTime()
+          : undefined;
+        const seededDemoUser = isSeededDemoEmail(
+          credential.user.email ?? email,
+        );
 
-      const nextProfile: StoredAuthProfile = {
-        role: (tokenResult.claims.role as Role | undefined) ?? "parent",
-        userId: credential.user.uid,
-        schoolId:
-          typeof tokenResult.claims.schoolId === "string"
-            ? tokenResult.claims.schoolId
-            : "",
-        email: credential.user.email ?? email,
-        homeAddress:
-          typeof tokenResult.claims.homeAddress === "string"
-            ? tokenResult.claims.homeAddress
-            : "123 Main St",
-      };
+        const nextProfile: StoredAuthProfile = {
+          role: seededDemoUser
+            ? "admin"
+            : ((tokenResult.claims.role as Role | undefined) ?? "parent"),
+          userId: credential.user.uid,
+          schoolId: seededDemoUser
+            ? typeof tokenResult.claims.schoolId === "string" &&
+              tokenResult.claims.schoolId.trim().length > 0
+              ? tokenResult.claims.schoolId
+              : "mock-school"
+            : typeof tokenResult.claims.schoolId === "string"
+              ? tokenResult.claims.schoolId
+              : "",
+          email: credential.user.email ?? email,
+          homeAddress:
+            typeof tokenResult.claims.homeAddress === "string"
+              ? tokenResult.claims.homeAddress
+              : "123 Main St",
+        };
 
-      await saveSession({
-        accessToken: idToken,
-        refreshToken: credential.user.refreshToken,
-        idToken,
-        expiresAt: expirationTime,
-      });
-      await setJson(PROFILE_KEY, nextProfile);
+        await saveSession({
+          accessToken: idToken,
+          refreshToken: credential.user.refreshToken,
+          idToken,
+          expiresAt: expirationTime,
+        });
+        await setJson(PROFILE_KEY, nextProfile);
 
-      set({
-        isAuthenticated: true,
-        email: nextProfile.email,
-        role: nextProfile.role,
-        userId: nextProfile.userId,
-        schoolId: nextProfile.schoolId,
-        homeAddress: nextProfile.homeAddress,
-        accessToken: idToken,
-        refreshToken: credential.user.refreshToken,
-        idToken,
-        expiresAt: expirationTime,
-      });
-      return;
+        set({
+          isAuthenticated: true,
+          email: nextProfile.email,
+          role: nextProfile.role,
+          userId: nextProfile.userId,
+          schoolId: nextProfile.schoolId,
+          homeAddress: nextProfile.homeAddress,
+          accessToken: idToken,
+          refreshToken: credential.user.refreshToken,
+          idToken,
+          expiresAt: expirationTime,
+        });
+        return;
+      } catch (error) {
+        throw toFirebaseSignInErrorMessage(error);
+      }
     }
 
     const apiBaseUrl = cfg.apiBaseUrl.trim();

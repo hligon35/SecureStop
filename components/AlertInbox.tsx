@@ -1,30 +1,46 @@
-import { useMemo, useState } from 'react';
-import { ScrollView, View } from 'react-native';
-import { Button, Card, Chip, Divider, Modal, Portal, Text, TextInput, useTheme } from 'react-native-paper';
+import { useMemo, useState } from "react";
+import { ScrollView, View } from "react-native";
+import {
+    Button,
+    Card,
+    Chip,
+    Divider,
+    Modal,
+    Portal,
+    Text,
+    TextInput,
+    useTheme,
+} from "react-native-paper";
 
-import type { Role } from '@/constants/roles';
-import type { AlertMessage } from '@/store/notifications';
-import { useNotificationStore } from '@/store/notifications';
+import type { Role } from "@/constants/roles";
+import type { AlertMessage } from "@/store/notifications";
+import { useNotificationStore } from "@/store/notifications";
 
-function recipientLabel(v: AlertMessage['recipients']) {
-  if (v === 'both') return 'Parents + School';
-  if (v === 'school') return 'School/Admin';
-  if (v === 'parents') return 'Parents';
-  if (v === 'driver') return 'Driver';
+function recipientLabel(v: AlertMessage["recipients"]) {
+  if (v === "both") return "Parents + School";
+  if (v === "school") return "School/Admin";
+  if (v === "parents") return "Parents";
+  if (v === "driver") return "Driver";
   return v;
 }
 
-export function AlertInbox(props: { inbox: AlertMessage[]; viewerRole?: Role }) {
+export function AlertInbox(props: {
+  inbox: AlertMessage[];
+  viewerRole?: Role;
+}) {
   const theme = useTheme();
   const sendAdminBroadcast = useNotificationStore((s) => s.sendAdminBroadcast);
+  const removeAlertById = useNotificationStore((s) => s.removeAlertById);
 
   const viewerRole = props.viewerRole;
 
   const [respondTo, setRespondTo] = useState<AlertMessage | null>(null);
-  const [responseText, setResponseText] = useState('');
+  const [responseText, setResponseText] = useState("");
   const [notifyParents, setNotifyParents] = useState(false);
-  const [parentRecipients, setParentRecipients] = useState<'parents' | 'both'>('parents');
-  const [parentText, setParentText] = useState('');
+  const [parentRecipients, setParentRecipients] = useState<"parents" | "both">(
+    "parents",
+  );
+  const [parentText, setParentText] = useState("");
 
   const canSend = useMemo(() => responseText.trim().length > 0, [responseText]);
 
@@ -44,36 +60,58 @@ export function AlertInbox(props: { inbox: AlertMessage[]; viewerRole?: Role }) 
       <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
         <View style={{ gap: 12 }}>
           {props.inbox.map((m) => {
-            const showAdminRespond = viewerRole === 'admin' && m.createdByRole === 'driver';
+            const showAdminRespond =
+              viewerRole === "admin" && m.createdByRole === "driver";
 
             return (
               <Card key={m.id}>
-                <Card.Title title={m.title} subtitle={new Date(m.createdAt).toLocaleTimeString()} />
+                <Card.Title
+                  title={m.title}
+                  subtitle={new Date(m.createdAt).toLocaleTimeString()}
+                />
                 <Card.Content style={{ gap: 10 }}>
                   <Text>{m.body}</Text>
                   <View style={{ gap: 2 }}>
                     <Text variant="labelSmall">From: {m.createdByRole}</Text>
-                    <Text variant="labelSmall">Severity: {m.severity ?? '—'}</Text>
-                    <Text variant="labelSmall">Recipients: {recipientLabel(m.recipients)}</Text>
+                    <Text variant="labelSmall">
+                      Severity: {m.severity ?? "—"}
+                    </Text>
+                    <Text variant="labelSmall">
+                      Recipients: {recipientLabel(m.recipients)}
+                    </Text>
                   </View>
 
-                  {showAdminRespond ? (
-                    <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "flex-end",
+                      gap: 8,
+                    }}
+                  >
+                    <Button
+                      mode="text"
+                      icon="delete-outline"
+                      textColor={theme.colors.error}
+                      onPress={() => removeAlertById(m.id)}
+                    >
+                      Delete
+                    </Button>
+                    {showAdminRespond ? (
                       <Button
                         mode="outlined"
                         icon="reply"
                         onPress={() => {
                           setRespondTo(m);
-                          setResponseText('');
+                          setResponseText("");
                           setNotifyParents(false);
-                          setParentRecipients('parents');
-                          setParentText('');
+                          setParentRecipients("parents");
+                          setParentText("");
                         }}
                       >
                         Respond
                       </Button>
-                    </View>
-                  ) : null}
+                    ) : null}
+                  </View>
                 </Card.Content>
               </Card>
             );
@@ -85,12 +123,20 @@ export function AlertInbox(props: { inbox: AlertMessage[]; viewerRole?: Role }) 
         <Modal
           visible={!!respondTo}
           onDismiss={() => setRespondTo(null)}
-          contentContainerStyle={{ margin: 16, borderRadius: 12, overflow: 'hidden', backgroundColor: theme.colors.surface }}
+          contentContainerStyle={{
+            margin: 16,
+            borderRadius: 12,
+            overflow: "hidden",
+            backgroundColor: theme.colors.surface,
+          }}
         >
           <View style={{ padding: 16, gap: 12 }}>
             <Text variant="titleSmall">Respond to driver</Text>
             {respondTo ? (
-              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+              <Text
+                variant="bodySmall"
+                style={{ color: theme.colors.onSurfaceVariant }}
+              >
                 About: {respondTo.title}
               </Text>
             ) : null}
@@ -107,22 +153,36 @@ export function AlertInbox(props: { inbox: AlertMessage[]; viewerRole?: Role }) 
             />
 
             <View style={{ gap: 8 }}>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                <Chip selected={notifyParents === false} onPress={() => setNotifyParents(false)}>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                <Chip
+                  selected={notifyParents === false}
+                  onPress={() => setNotifyParents(false)}
+                >
                   Driver only
                 </Chip>
-                <Chip selected={notifyParents === true} onPress={() => setNotifyParents(true)}>
+                <Chip
+                  selected={notifyParents === true}
+                  onPress={() => setNotifyParents(true)}
+                >
                   Also notify parents
                 </Chip>
               </View>
 
               {notifyParents ? (
                 <>
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                    <Chip selected={parentRecipients === 'parents'} onPress={() => setParentRecipients('parents')}>
+                  <View
+                    style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}
+                  >
+                    <Chip
+                      selected={parentRecipients === "parents"}
+                      onPress={() => setParentRecipients("parents")}
+                    >
                       Parents
                     </Chip>
-                    <Chip selected={parentRecipients === 'both'} onPress={() => setParentRecipients('both')}>
+                    <Chip
+                      selected={parentRecipients === "both"}
+                      onPress={() => setParentRecipients("both")}
+                    >
                       Parents + School
                     </Chip>
                   </View>
@@ -150,7 +210,7 @@ export function AlertInbox(props: { inbox: AlertMessage[]; viewerRole?: Role }) 
                 await sendAdminBroadcast({
                   title: `Response: ${respondTo.title}`,
                   body: driverBody,
-                  recipients: 'driver',
+                  recipients: "driver",
                   vehicleId: respondTo.vehicleId,
                 });
 

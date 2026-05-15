@@ -11,6 +11,8 @@
     "ios:build:appstore": "eas build --platform ios --profile production",
     "ios:submit:testflight": "eas submit --platform ios --profile production",
     "ios:release:testflight": "eas build --platform ios --profile production --auto-submit",
+    "ota:publish:production": "eas update --channel production",
+    "ota:publish:production:clear-cache": "eas update --channel production --clear-cache",
     "ota:publish:internal": "eas update --channel internal",
     "ota:publish:internal:clear-cache": "eas update --channel internal --clear-cache"
   },
