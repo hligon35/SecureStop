@@ -1,13 +1,14 @@
-import { Platform } from 'react-native';
+import { Platform } from "react-native";
 
 export type StoredSession = {
   accessToken: string;
+  userId?: string;
   refreshToken?: string;
   idToken?: string;
   expiresAt?: number; // epoch ms
 };
 
-const KEY = 'securestop.session.v1';
+const KEY = "securestop.session.v1";
 
 let inMemorySession: string | null = null;
 
@@ -23,7 +24,7 @@ let cachedSecureStore:
 let secureStoreDisabled = false;
 
 function getWebStorage(): Storage | undefined {
-  if (Platform.OS !== 'web') return undefined;
+  if (Platform.OS !== "web") return undefined;
   try {
     return globalThis?.localStorage;
   } catch {
@@ -40,13 +41,14 @@ async function getSecureStore(): Promise<
     }
   | undefined
 > {
-  if (Platform.OS === 'web') return undefined;
+  if (Platform.OS === "web") return undefined;
   if (secureStoreDisabled) return undefined;
   if (cachedSecureStore) return cachedSecureStore;
 
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const SecureStore = require('expo-secure-store') as typeof import('expo-secure-store');
+    const SecureStore =
+      require("expo-secure-store") as typeof import("expo-secure-store");
     cachedSecureStore = SecureStore;
     return cachedSecureStore;
   } catch {
@@ -60,7 +62,7 @@ async function secureGetItem(key: string): Promise<string | null> {
   if (!secureStore) return null;
 
   try {
-    if (typeof secureStore.isAvailableAsync === 'function') {
+    if (typeof secureStore.isAvailableAsync === "function") {
       const available = await secureStore.isAvailableAsync();
       if (!available) {
         secureStoreDisabled = true;
@@ -79,7 +81,7 @@ async function secureSetItem(key: string, value: string): Promise<boolean> {
   if (!secureStore) return false;
 
   try {
-    if (typeof secureStore.isAvailableAsync === 'function') {
+    if (typeof secureStore.isAvailableAsync === "function") {
       const available = await secureStore.isAvailableAsync();
       if (!available) {
         secureStoreDisabled = true;
@@ -99,7 +101,7 @@ async function secureDeleteItem(key: string): Promise<boolean> {
   if (!secureStore) return false;
 
   try {
-    if (typeof secureStore.isAvailableAsync === 'function') {
+    if (typeof secureStore.isAvailableAsync === "function") {
       const available = await secureStore.isAvailableAsync();
       if (!available) {
         secureStoreDisabled = true;
@@ -135,7 +137,9 @@ export async function loadSession(): Promise<StoredSession | undefined> {
   }
 }
 
-export async function saveSession(session: StoredSession | undefined): Promise<void> {
+export async function saveSession(
+  session: StoredSession | undefined,
+): Promise<void> {
   try {
     const web = getWebStorage();
     if (web) {

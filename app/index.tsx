@@ -2,15 +2,18 @@ import { Redirect } from "expo-router";
 import { Platform } from "react-native";
 
 import { roleRootPath } from "@/constants/routes";
+import { hasTenantContext } from "@/lib/tenancy/context";
 import { useAuthStore } from "@/store/auth";
+import { useTenantMembershipStore } from "@/store/tenantMembership";
 
 export default function Index() {
   const hydrated = useAuthStore((s) => s.hydrated);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const role = useAuthStore((s) => s.role);
-  const schoolId = useAuthStore((s) => s.schoolId);
+  const tenantMembershipHydrated = useTenantMembershipStore((s) => s.hydrated);
+  const activeTenantId = useTenantMembershipStore((s) => s.activeTenantId);
 
-  if (!hydrated) return null;
+  if (!hydrated || !tenantMembershipHydrated) return null;
 
   if (!isAuthenticated) {
     return <Redirect href="/login" />;
@@ -24,7 +27,7 @@ export default function Index() {
     return <Redirect href={roleRootPath(role)} />;
   }
 
-  if (!schoolId || schoolId.trim().length === 0) {
+  if (!hasTenantContext(activeTenantId)) {
     return <Redirect href="/select-tenant" />;
   }
 

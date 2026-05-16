@@ -1,16 +1,13 @@
-import { api } from '@/lib/api/client';
-import { getJson, setJson } from '@/lib/storage/kv';
+import type {
+    DriverLocationBatchRequest,
+    DriverLocationPoint,
+} from "@/core/api/contracts";
+import { api } from "@/lib/api/client";
+import { getJson, setJson } from "@/lib/storage/kv";
 
-type QueuedLocation = {
-  latitude: number;
-  longitude: number;
-  heading?: number;
-  speed?: number;
-  accuracy?: number;
-  timestamp: number;
-};
+type QueuedLocation = DriverLocationPoint;
 
-const KEY = 'securestop.locationQueue.v1';
+const KEY = "securestop.locationQueue.v1";
 
 let flushing = false;
 
@@ -31,7 +28,9 @@ export async function enqueueLocation(point: QueuedLocation): Promise<void> {
   await writeQueue(capped);
 }
 
-export async function flushLocationQueue(params?: { maxBatch?: number }): Promise<void> {
+export async function flushLocationQueue(params?: {
+  maxBatch?: number;
+}): Promise<void> {
   if (flushing) return;
   flushing = true;
   try {
@@ -41,13 +40,14 @@ export async function flushLocationQueue(params?: { maxBatch?: number }): Promis
     while (queue.length > 0) {
       const batch = queue.slice(0, maxBatch);
       try {
-        await api.post('/location/driver/batch', { points: batch });
+        const payload: DriverLocationBatchRequest = { points: batch };
+        await api.post("/location/driver/batch", payload);
         queue = queue.slice(batch.length);
         await writeQueue(queue);
       } catch {
         // If batch endpoint doesn't exist, try single-point fallback.
         try {
-          await api.post('/location/driver', batch[0]);
+          await api.post("/location/driver", batch[0]);
           queue = queue.slice(1);
           await writeQueue(queue);
         } catch {

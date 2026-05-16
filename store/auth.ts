@@ -1,34 +1,32 @@
 import { create } from "zustand";
 
 import {
-    DEV_ACCOUNT_EMAIL,
-    DEV_ACCOUNT_PASSWORD,
+  DEV_ACCOUNT_EMAIL,
+  DEV_ACCOUNT_PASSWORD,
 } from "@/constants/devAccount";
 import type { Role } from "@/constants/roles";
+import type { AuthLoginRequest, AuthLoginResponse } from "@/core/api/contracts";
+import type { IdentityProfile } from "@/core/identity/types";
 import { api, configureApiAuthProviders } from "@/lib/api/client";
 import {
-    isFirebaseConfigured,
-    signInWithFirebasePassword,
-    signOutFirebase,
+  isFirebaseConfigured,
+  signInWithFirebasePassword,
+  signOutFirebase,
 } from "@/lib/auth/firebase";
+import { localIdentityProfileRepository } from "@/lib/auth/localProfileRepository";
 import {
-    clearSession,
-    loadSession,
-    saveSession,
-    type StoredSession,
+  hydrateIdentityProfile,
+  persistIdentityProfile,
+} from "@/lib/auth/profileSync";
+import {
+  clearSession,
+  loadSession,
+  saveSession,
+  type StoredSession,
 } from "@/lib/auth/sessionStorage";
 import { getConfig } from "@/lib/config";
-import { getJson, setJson } from "@/lib/storage/kv";
-
-type StoredAuthProfile = {
-  role: Role;
-  userId: string;
-  schoolId: string;
-  email: string;
-  homeAddress: string;
-};
-
-const PROFILE_KEY = "securestop.authProfile.v1";
+import { normalizeTenantId } from "@/lib/tenancy/context";
+import { useTenantMembershipStore } from "@/store/tenantMembership";
 
 function isSeededDemoCredential(email: string, password: string) {
   return (
@@ -41,21 +39,22 @@ function isSeededDemoEmail(email: string) {
   return email.trim().toLowerCase() === DEV_ACCOUNT_EMAIL.trim().toLowerCase();
 }
 
-function normalizeStoredProfile(profile?: StoredAuthProfile) {
+function normalizeIdentityProfile(profile?: IdentityProfile) {
   if (!profile) return profile;
+  const tenantId = normalizeTenantId(profile.tenantId ?? profile.schoolId);
   if (!isSeededDemoEmail(profile.email)) return profile;
 
   return {
     ...profile,
+    tenantId,
     role: "admin" as const,
-    schoolId:
-      profile.schoolId.trim().length > 0 ? profile.schoolId : "mock-school",
-  } satisfies StoredAuthProfile;
+    schoolId: tenantId || "mock-school",
+  } satisfies IdentityProfile;
 }
 
 function getHydratedProfile(
   session: StoredSession | undefined,
-  profile: StoredAuthProfile | undefined,
+  profile: IdentityProfile | undefined,
 ) {
   if (profile) return profile;
 
@@ -65,10 +64,41 @@ function getHydratedProfile(
   return {
     role: "admin" as const,
     userId: "mock-user",
+    tenantId: "mock-school",
     schoolId: "mock-school",
     email: DEV_ACCOUNT_EMAIL,
     homeAddress: "123 Main St",
-  } satisfies StoredAuthProfile;
+  } satisfies IdentityProfile;
+}
+
+function toIdentityProfile(params: {
+  role: Role;
+  userId: string;
+  tenantId?: string;
+  schoolId?: string;
+  email: string;
+  homeAddress: string;
+}) {
+  const tenantId = normalizeTenantId(params.tenantId ?? params.schoolId);
+
+  return {
+    role: params.role,
+    userId: params.userId,
+    tenantId: tenantId || undefined,
+    schoolId: tenantId,
+    email: params.email,
+    homeAddress: params.homeAddress,
+  } satisfies IdentityProfile;
+}
+
+function syncTenantMembershipFromAuth(params: {
+  tenantId?: string;
+  role: Role;
+}) {
+  useTenantMembershipStore.getState().syncFromAuthProfile({
+    tenantId: params.tenantId,
+    role: params.role,
+  });
 }
 
 function toFirebaseSignInErrorMessage(error: unknown) {
@@ -88,6 +118,7 @@ type AuthState = {
   isAuthenticated: boolean;
   role: Role;
   userId: string;
+  tenantId: string;
   schoolId: string;
   email: string;
   homeAddress: string;
@@ -98,6 +129,7 @@ type AuthState = {
   expiresAt?: number;
   hydrated: boolean;
   setRole: (role: Role) => void;
+  setTenantId: (tenantId: string) => void;
   setSchoolId: (schoolId: string) => void;
   setAccount: (
     next: Partial<Pick<AuthState, "email" | "homeAddress" | "passwordMock">>,
@@ -106,7 +138,10 @@ type AuthState = {
   hydrate: () => Promise<void>;
   signInMock: (
     params?: Partial<
-      Pick<AuthState, "role" | "userId" | "schoolId" | "email" | "passwordMock">
+      Pick<
+        AuthState,
+        "role" | "userId" | "tenantId" | "schoolId" | "email" | "passwordMock"
+      >
     >,
   ) => void;
   signInWithPassword: (params: {
@@ -121,6 +156,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   isAuthenticated: false,
   role: "parent",
   userId: "mock-user",
+  tenantId: "",
   schoolId: "",
   email: DEV_ACCOUNT_EMAIL,
   homeAddress: "123 Main St",
@@ -133,37 +169,37 @@ export const useAuthStore = create<AuthState>((set) => ({
   setRole: (role) =>
     set((s) => {
       const next = { ...s, role };
-      setJson(PROFILE_KEY, {
-        role: next.role,
-        userId: next.userId,
-        schoolId: next.schoolId,
-        email: next.email,
-        homeAddress: next.homeAddress,
-      } satisfies StoredAuthProfile).catch(() => {});
+      persistIdentityProfile(toIdentityProfile(next)).catch(() => {});
+      return next;
+    }),
+  setTenantId: (tenantId) =>
+    set((s) => {
+      const normalizedTenantId = normalizeTenantId(tenantId);
+      useTenantMembershipStore.getState().setActiveTenantId(normalizedTenantId);
+      const next = {
+        ...s,
+        tenantId: normalizedTenantId,
+        schoolId: normalizedTenantId,
+      };
+      persistIdentityProfile(toIdentityProfile(next)).catch(() => {});
       return next;
     }),
   setSchoolId: (schoolId) =>
     set((s) => {
-      const next = { ...s, schoolId };
-      setJson(PROFILE_KEY, {
-        role: next.role,
-        userId: next.userId,
-        schoolId: next.schoolId,
-        email: next.email,
-        homeAddress: next.homeAddress,
-      } satisfies StoredAuthProfile).catch(() => {});
+      const normalizedTenantId = normalizeTenantId(schoolId);
+      useTenantMembershipStore.getState().setActiveTenantId(normalizedTenantId);
+      const next = {
+        ...s,
+        tenantId: normalizedTenantId,
+        schoolId: normalizedTenantId,
+      };
+      persistIdentityProfile(toIdentityProfile(next)).catch(() => {});
       return next;
     }),
   setAccount: (nextPartial) =>
     set((s) => {
       const next = { ...s, ...nextPartial };
-      setJson(PROFILE_KEY, {
-        role: next.role,
-        userId: next.userId,
-        schoolId: next.schoolId,
-        email: next.email,
-        homeAddress: next.homeAddress,
-      } satisfies StoredAuthProfile).catch(() => {});
+      persistIdentityProfile(toIdentityProfile(next)).catch(() => {});
       return next;
     }),
   setSession: async (next) => {
@@ -178,14 +214,30 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
   hydrate: async () => {
     const session = await loadSession();
-    const storedProfile = await getJson<StoredAuthProfile>(PROFILE_KEY);
+    const storedProfile = normalizeIdentityProfile(
+      await localIdentityProfileRepository.load(),
+    );
+    const hydratedIdentity = await hydrateIdentityProfile({
+      session,
+      storedProfile,
+    });
     const profile = getHydratedProfile(
       session,
-      normalizeStoredProfile(storedProfile),
+      normalizeIdentityProfile(hydratedIdentity.profile),
     );
 
-    if (profile && JSON.stringify(profile) !== JSON.stringify(storedProfile)) {
-      await setJson(PROFILE_KEY, profile);
+    if (
+      profile &&
+      JSON.stringify(profile) !== JSON.stringify(hydratedIdentity.profile)
+    ) {
+      await localIdentityProfileRepository.save(profile);
+    }
+
+    if (!hydratedIdentity.membershipContext) {
+      syncTenantMembershipFromAuth({
+        tenantId: profile?.tenantId ?? profile?.schoolId,
+        role: profile?.role ?? "parent",
+      });
     }
 
     set({
@@ -196,7 +248,8 @@ export const useAuthStore = create<AuthState>((set) => ({
       isAuthenticated: session?.accessToken ? true : false,
       role: profile?.role ?? "parent",
       userId: profile?.userId ?? "mock-user",
-      schoolId: profile?.schoolId ?? "",
+      tenantId: normalizeTenantId(profile?.tenantId ?? profile?.schoolId),
+      schoolId: normalizeTenantId(profile?.schoolId ?? profile?.tenantId),
       email: profile?.email ?? DEV_ACCOUNT_EMAIL,
       homeAddress: profile?.homeAddress ?? "123 Main St",
       passwordMock: DEV_ACCOUNT_PASSWORD,
@@ -210,17 +263,18 @@ export const useAuthStore = create<AuthState>((set) => ({
         isAuthenticated: true,
         role: params?.role ?? "parent",
         userId: params?.userId ?? "mock-user",
-        schoolId: params?.schoolId ?? s.schoolId,
+        tenantId:
+          normalizeTenantId(params?.tenantId ?? params?.schoolId) || s.tenantId,
+        schoolId:
+          normalizeTenantId(params?.tenantId ?? params?.schoolId) || s.schoolId,
         email: params?.email ?? DEV_ACCOUNT_EMAIL,
         passwordMock: params?.passwordMock ?? DEV_ACCOUNT_PASSWORD,
       };
-      setJson(PROFILE_KEY, {
+      syncTenantMembershipFromAuth({
+        tenantId: next.tenantId,
         role: next.role,
-        userId: next.userId,
-        schoolId: next.schoolId,
-        email: next.email,
-        homeAddress: next.homeAddress,
-      } satisfies StoredAuthProfile).catch(() => {});
+      });
+      persistIdentityProfile(toIdentityProfile(next)).catch(() => {});
       return next;
     }),
   signInWithPassword: async ({ email, password }) => {
@@ -232,18 +286,18 @@ export const useAuthStore = create<AuthState>((set) => ({
           isAuthenticated: true,
           role: "admin" as const,
           userId: s.userId,
-          schoolId: s.schoolId || "mock-school",
+          tenantId: s.tenantId || "mock-school",
+          schoolId: s.tenantId || s.schoolId || "mock-school",
           email: DEV_ACCOUNT_EMAIL,
           passwordMock: DEV_ACCOUNT_PASSWORD,
         };
 
-        setJson(PROFILE_KEY, {
+        syncTenantMembershipFromAuth({
+          tenantId: next.tenantId,
           role: next.role,
-          userId: next.userId,
-          schoolId: next.schoolId,
-          email: next.email,
-          homeAddress: next.homeAddress,
-        } satisfies StoredAuthProfile).catch(() => {});
+        });
+
+        persistIdentityProfile(toIdentityProfile(next)).catch(() => {});
 
         return next;
       });
@@ -265,11 +319,19 @@ export const useAuthStore = create<AuthState>((set) => ({
           credential.user.email ?? email,
         );
 
-        const nextProfile: StoredAuthProfile = {
+        const nextProfile: IdentityProfile = {
           role: seededDemoUser
             ? "admin"
             : ((tokenResult.claims.role as Role | undefined) ?? "parent"),
           userId: credential.user.uid,
+          tenantId: seededDemoUser
+            ? typeof tokenResult.claims.schoolId === "string" &&
+              tokenResult.claims.schoolId.trim().length > 0
+              ? tokenResult.claims.schoolId
+              : "mock-school"
+            : typeof tokenResult.claims.schoolId === "string"
+              ? tokenResult.claims.schoolId
+              : "",
           schoolId: seededDemoUser
             ? typeof tokenResult.claims.schoolId === "string" &&
               tokenResult.claims.schoolId.trim().length > 0
@@ -287,17 +349,25 @@ export const useAuthStore = create<AuthState>((set) => ({
 
         await saveSession({
           accessToken: idToken,
+          userId: credential.user.uid,
           refreshToken: credential.user.refreshToken,
           idToken,
           expiresAt: expirationTime,
         });
-        await setJson(PROFILE_KEY, nextProfile);
+        await persistIdentityProfile(nextProfile);
+        syncTenantMembershipFromAuth({
+          tenantId: nextProfile.tenantId ?? nextProfile.schoolId,
+          role: nextProfile.role,
+        });
 
         set({
           isAuthenticated: true,
           email: nextProfile.email,
           role: nextProfile.role,
           userId: nextProfile.userId,
+          tenantId: normalizeTenantId(
+            nextProfile.tenantId ?? nextProfile.schoolId,
+          ),
           schoolId: nextProfile.schoolId,
           homeAddress: nextProfile.homeAddress,
           accessToken: idToken,
@@ -318,8 +388,9 @@ export const useAuthStore = create<AuthState>((set) => ({
       );
     }
 
-    const res = await api.post("/auth/login", { email, password });
-    const data = res.data as any;
+    const payload: AuthLoginRequest = { email, password };
+    const res = await api.post<AuthLoginResponse>("/auth/login", payload);
+    const data = res.data;
     const accessToken: string | undefined = data?.accessToken;
     if (!accessToken) throw new Error("Login did not return an access token");
 
@@ -329,25 +400,32 @@ export const useAuthStore = create<AuthState>((set) => ({
         : undefined;
     await saveSession({
       accessToken,
+      userId: (data?.userId as string | undefined) ?? "mock-user",
       refreshToken: data?.refreshToken,
       idToken: data?.idToken,
       expiresAt,
     });
 
-    const nextProfile: StoredAuthProfile = {
+    const nextProfile = toIdentityProfile({
       role: (data?.role as Role) ?? "parent",
       userId: (data?.userId as string) ?? "mock-user",
-      schoolId: (data?.schoolId as string) ?? "",
+      tenantId: (data?.tenantId as string | undefined) ?? data?.schoolId,
+      schoolId: (data?.schoolId as string | undefined) ?? data?.tenantId,
       email,
       homeAddress: (data?.homeAddress as string) ?? "123 Main St",
-    };
-    await setJson(PROFILE_KEY, nextProfile);
+    });
+    await persistIdentityProfile(nextProfile);
+    syncTenantMembershipFromAuth({
+      tenantId: nextProfile.tenantId ?? nextProfile.schoolId,
+      role: nextProfile.role,
+    });
 
     set({
       isAuthenticated: true,
       email,
       role: nextProfile.role,
       userId: nextProfile.userId,
+      tenantId: normalizeTenantId(nextProfile.tenantId ?? nextProfile.schoolId),
       schoolId: nextProfile.schoolId,
       homeAddress: nextProfile.homeAddress,
       accessToken,
@@ -369,13 +447,15 @@ export const useAuthStore = create<AuthState>((set) => ({
   signOut: () => {
     clearSession();
     signOutFirebase().catch(() => {});
-    setJson(PROFILE_KEY, undefined).catch(() => {});
+    useTenantMembershipStore.getState().clear();
+    localIdentityProfileRepository.clear().catch(() => {});
     set({
       isAuthenticated: false,
       accessToken: undefined,
       refreshToken: undefined,
       idToken: undefined,
       expiresAt: undefined,
+      tenantId: "",
       schoolId: "",
     });
   },
@@ -383,5 +463,6 @@ export const useAuthStore = create<AuthState>((set) => ({
 
 configureApiAuthProviders({
   getAccessToken: () => useAuthStore.getState().accessToken,
+  getTenantId: () => useAuthStore.getState().tenantId,
   getSchoolId: () => useAuthStore.getState().schoolId,
 });

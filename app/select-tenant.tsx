@@ -2,19 +2,21 @@ import { Redirect, router } from "expo-router";
 import { useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
 import {
-    Button,
-    Card,
-    Divider,
-    RadioButton,
-    Snackbar,
-    Text,
-    TextInput,
-    useTheme,
+  Button,
+  Card,
+  Divider,
+  RadioButton,
+  Snackbar,
+  Text,
+  TextInput,
+  useTheme,
 } from "react-native-paper";
 
 import { UpdateDebugBadge } from "@/components/UpdateDebugBadge";
 import { getConfig } from "@/lib/config";
+import { hasTenantContext, normalizeTenantId } from "@/lib/tenancy/context";
 import { useAuthStore } from "@/store/auth";
+import { useTenantMembershipStore } from "@/store/tenantMembership";
 
 export default function SelectTenantScreen() {
   const theme = useTheme();
@@ -23,8 +25,8 @@ export default function SelectTenantScreen() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const role = useAuthStore((s) => s.role);
   const email = useAuthStore((s) => s.email);
-  const schoolId = useAuthStore((s) => s.schoolId);
-  const setSchoolId = useAuthStore((s) => s.setSchoolId);
+  const tenantId = useTenantMembershipStore((s) => s.activeTenantId);
+  const setTenantId = useAuthStore((s) => s.setTenantId);
 
   const [mode, setMode] = useState<"list" | "custom">(
     cfg.tenants.length > 1 ? "list" : "custom",
@@ -33,9 +35,9 @@ export default function SelectTenantScreen() {
   const [snack, setSnack] = useState<string | null>(null);
 
   const canContinue = useMemo(() => {
-    if (mode === "list") return schoolId.trim().length > 0;
-    return customId.trim().length > 0;
-  }, [customId, mode, schoolId]);
+    if (mode === "list") return hasTenantContext(tenantId);
+    return hasTenantContext(customId);
+  }, [customId, mode, tenantId]);
 
   const seededDemoAdmin =
     cfg.features.enableDemoLogin &&
@@ -48,12 +50,12 @@ export default function SelectTenantScreen() {
 
   function continueNext() {
     if (mode === "custom") {
-      const next = customId.trim();
+      const next = normalizeTenantId(customId);
       if (!next) {
         setSnack("Enter a school/tenant id");
         return;
       }
-      setSchoolId(next);
+      setTenantId(next);
     }
     router.replace("/");
   }
@@ -114,8 +116,8 @@ export default function SelectTenantScreen() {
                 <>
                   <Text variant="labelLarge">Organizations</Text>
                   <RadioButton.Group
-                    value={schoolId}
-                    onValueChange={(v) => setSchoolId(String(v))}
+                    value={tenantId}
+                    onValueChange={(v) => setTenantId(String(v))}
                   >
                     <View style={{ gap: 6 }}>
                       {cfg.tenants.map((t) => (

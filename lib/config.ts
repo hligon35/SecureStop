@@ -8,6 +8,11 @@ export type AppConfig = {
     messagingSenderId?: string;
     appId: string;
   };
+  supabase?: {
+    url: string;
+    anonKey: string;
+    schema: string;
+  };
   tenants: Array<{ id: string; name: string }>;
   oidc?: {
     issuer?: string;
@@ -44,6 +49,10 @@ export function getConfig(): AppConfig {
   const firebaseMessagingSenderId =
     process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID?.trim();
   const firebaseAppId = process.env.EXPO_PUBLIC_FIREBASE_APP_ID?.trim();
+  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL?.trim();
+  const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY?.trim();
+  const supabaseSchema =
+    process.env.EXPO_PUBLIC_SUPABASE_SCHEMA?.trim() || "public";
 
   const tenantsRaw = (process.env.EXPO_PUBLIC_TENANTS ?? "").trim();
   const tenants = (() => {
@@ -109,6 +118,14 @@ export function getConfig(): AppConfig {
             storageBucket: firebaseStorageBucket,
             messagingSenderId: firebaseMessagingSenderId,
             appId: firebaseAppId,
+          }
+        : undefined,
+    supabase:
+      supabaseUrl && supabaseAnonKey
+        ? {
+            url: supabaseUrl,
+            anonKey: supabaseAnonKey,
+            schema: supabaseSchema,
           }
         : undefined,
     tenants,

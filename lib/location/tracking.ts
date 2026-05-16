@@ -1,8 +1,12 @@
-import * as Location from 'expo-location';
+import * as Location from "expo-location";
 
-import { api } from '@/lib/api/client';
-import { enqueueLocation, flushLocationQueue } from '@/lib/location/uploadQueue';
-import { useLocationStore } from '@/store/location';
+import type { DriverLocationPoint } from "@/core/api/contracts";
+import { api } from "@/lib/api/client";
+import {
+    enqueueLocation,
+    flushLocationQueue,
+} from "@/lib/location/uploadQueue";
+import { useLocationStore } from "@/store/location";
 
 export type DriverLocationTrackingHandle = {
   stop: () => void;
@@ -14,8 +18,8 @@ export async function startDriverForegroundTracking(params?: {
   const postToBackend = params?.postToBackend ?? true;
 
   const fg = await Location.requestForegroundPermissionsAsync();
-  if (fg.status !== 'granted') {
-    throw new Error('Location permission not granted');
+  if (fg.status !== "granted") {
+    throw new Error("Location permission not granted");
   }
 
   const sub = await Location.watchPositionAsync(
@@ -26,7 +30,10 @@ export async function startDriverForegroundTracking(params?: {
     },
     async (pos) => {
       const next = {
-        coordinate: { latitude: pos.coords.latitude, longitude: pos.coords.longitude },
+        coordinate: {
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+        },
         heading: pos.coords.heading ?? undefined,
         updatedAt: Date.now(),
       };
@@ -36,7 +43,7 @@ export async function startDriverForegroundTracking(params?: {
 
       if (!postToBackend) return;
 
-      const payload = {
+      const payload: DriverLocationPoint = {
         latitude: pos.coords.latitude,
         longitude: pos.coords.longitude,
         heading: pos.coords.heading ?? undefined,
@@ -46,14 +53,14 @@ export async function startDriverForegroundTracking(params?: {
       };
 
       try {
-        await api.post('/location/driver', payload);
+        await api.post("/location/driver", payload);
         // Best-effort flush of any previously queued points.
         flushLocationQueue().catch(() => {});
       } catch {
         // Queue locally for later retry.
         enqueueLocation(payload).catch(() => {});
       }
-    }
+    },
   );
 
   const flushTimer = setInterval(() => {

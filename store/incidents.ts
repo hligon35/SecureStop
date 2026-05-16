@@ -1,34 +1,20 @@
-import { create } from 'zustand';
+import { create } from "zustand";
 
-import type { Role } from '@/constants/roles';
-import { getJson, setJson } from '@/lib/storage/kv';
-import type { AlertSeverity } from '@/store/notifications';
-
-export type IncidentStatus = 'open' | 'resolved';
-
-export type IncidentEvent = {
-  id: string;
-  at: number;
-  byRole: Role;
-  type: 'created' | 'note' | 'resolved';
-  message: string;
-};
-
-export type Incident = {
-  id: string;
-  alertId?: string;
-  title: string;
-  description: string;
-  severity: AlertSeverity;
-  status: IncidentStatus;
-  createdAt: number;
-  updatedAt: number;
-  vehicleId?: string;
-  createdByRole: Role;
-  events: IncidentEvent[];
-};
-
-const KEY = 'securestop.incidents.v1';
+import type { Role } from "@/constants/roles";
+import type { AlertSeverity } from "@/core/alerts/types";
+import {
+    createDomainEvent,
+    type IncidentCreatedEvent,
+    type IncidentNotedEvent,
+    type IncidentResolvedEvent,
+} from "@/core/events/contracts";
+import type {
+    Incident,
+    IncidentEvent,
+    IncidentStatus,
+} from "@/core/incidents/types";
+import { publishDomainEvent } from "@/lib/events/bus";
+import { localIncidentsRepository } from "@/lib/incidents/localRepository";
 
 function now() {
   return Date.now();
@@ -52,24 +38,29 @@ type IncidentsState = {
   clearAll: () => void;
 };
 
-function shouldCreateIncident(sev: AlertSeverity | undefined): sev is AlertSeverity {
+function shouldCreateIncident(
+  sev: AlertSeverity | undefined,
+): sev is AlertSeverity {
   if (!sev) return false;
-  return sev === 'red' || sev === 'orange';
-}
-
-function persist(incidents: Incident[]) {
-  setJson(KEY, { incidents }).catch(() => {});
+  return sev === "red" || sev === "orange";
 }
 
 export const useIncidentsStore = create<IncidentsState>((set, get) => ({
   hydrated: false,
   incidents: [],
   hydrate: async () => {
-    const data = await getJson<{ incidents?: Incident[] }>(KEY);
-    const incidents = Array.isArray(data?.incidents) ? data!.incidents! : [];
+    const incidents = await localIncidentsRepository.load();
     set({ incidents, hydrated: true });
   },
-  upsertFromAlert: ({ alertId, title, body, severity, vehicleId, createdAt, createdByRole }) => {
+  upsertFromAlert: ({
+    alertId,
+    title,
+    body,
+    severity,
+    vehicleId,
+    createdAt,
+    createdByRole,
+  }) => {
     if (!shouldCreateIncident(severity)) return;
 
     const existing = get().incidents.find((i) => i.alertId === alertId);
@@ -84,7 +75,7 @@ export const useIncidentsStore = create<IncidentsState>((set, get) => ({
       title,
       description: body,
       severity,
-      status: 'open',
+      status: "open",
       createdAt: createdAt || ts,
       updatedAt: ts,
       vehicleId,
@@ -94,7 +85,7 @@ export const useIncidentsStore = create<IncidentsState>((set, get) => ({
           id: `evt-${ts}`,
           at: ts,
           byRole: createdByRole,
-          type: 'created',
+          type: "created",
           message: `Incident created from alert (${severity.toUpperCase()}).`,
         },
       ],
@@ -102,47 +93,106 @@ export const useIncidentsStore = create<IncidentsState>((set, get) => ({
 
     set((s) => {
       const incidents = [created, ...s.incidents].slice(0, 200);
-      persist(incidents);
+      localIncidentsRepository.save(incidents).catch(() => {});
       return { incidents };
     });
+
+    const event: IncidentCreatedEvent = createDomainEvent("incident.created", {
+      incidentId: created.id,
+      alertId: created.alertId,
+      title: created.title,
+      severity: created.severity,
+      vehicleId: created.vehicleId,
+      createdAt: created.createdAt,
+      createdByRole: created.createdByRole,
+    });
+    publishDomainEvent(event);
   },
   addNote: (id, { message, byRole }) => {
     const ts = now();
+    let updated = false;
     set((s) => {
       const incidents = s.incidents.map((i) => {
         if (i.id !== id) return i;
+        updated = true;
         const next: Incident = {
           ...i,
           updatedAt: ts,
-          events: [...i.events, { id: `evt-${ts}-${Math.random().toString(16).slice(2)}`, at: ts, byRole, type: 'note', message }],
+          events: [
+            ...i.events,
+            {
+              id: `evt-${ts}-${Math.random().toString(16).slice(2)}`,
+              at: ts,
+              byRole,
+              type: "note",
+              message,
+            },
+          ],
         };
         return next;
       });
-      persist(incidents);
+      localIncidentsRepository.save(incidents).catch(() => {});
       return { incidents };
     });
+
+    if (!updated) return;
+
+    const event: IncidentNotedEvent = createDomainEvent("incident.noted", {
+      incidentId: id,
+      message,
+      byRole,
+      notedAt: ts,
+    });
+    publishDomainEvent(event);
   },
   resolve: (id, { message, byRole }) => {
     const ts = now();
+    let resolvedMessage: string | undefined;
     set((s) => {
       const incidents = s.incidents.map((i) => {
         if (i.id !== id) return i;
-        if (i.status === 'resolved') return i;
-        const note = message?.trim() ? message.trim() : 'Resolved.';
+        if (i.status === "resolved") return i;
+        const note = message?.trim() ? message.trim() : "Resolved.";
+        resolvedMessage = note;
         const next: Incident = {
           ...i,
-          status: 'resolved',
+          status: "resolved",
           updatedAt: ts,
-          events: [...i.events, { id: `evt-${ts}-${Math.random().toString(16).slice(2)}`, at: ts, byRole, type: 'resolved', message: note }],
+          events: [
+            ...i.events,
+            {
+              id: `evt-${ts}-${Math.random().toString(16).slice(2)}`,
+              at: ts,
+              byRole,
+              type: "resolved",
+              message: note,
+            },
+          ],
         };
         return next;
       });
-      persist(incidents);
+      localIncidentsRepository.save(incidents).catch(() => {});
       return { incidents };
     });
+
+    if (!resolvedMessage) return;
+
+    const event: IncidentResolvedEvent = createDomainEvent(
+      "incident.resolved",
+      {
+        incidentId: id,
+        message: resolvedMessage,
+        byRole,
+        resolvedAt: ts,
+      },
+    );
+    publishDomainEvent(event);
   },
   clearAll: () => {
     set({ incidents: [] });
-    setJson(KEY, undefined).catch(() => {});
+    localIncidentsRepository.clear().catch(() => {});
   },
 }));
+
+export type { Incident, IncidentEvent, IncidentStatus };
+
