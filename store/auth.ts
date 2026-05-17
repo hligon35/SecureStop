@@ -1,28 +1,29 @@
 import { create } from "zustand";
 
 import {
-  DEV_ACCOUNT_EMAIL,
-  DEV_ACCOUNT_PASSWORD,
+    DEV_ACCOUNT_EMAIL,
+    DEV_ACCOUNT_PASSWORD,
 } from "@/constants/devAccount";
 import type { Role } from "@/constants/roles";
 import type { AuthLoginRequest, AuthLoginResponse } from "@/core/api/contracts";
 import type { IdentityProfile } from "@/core/identity/types";
 import { api, configureApiAuthProviders } from "@/lib/api/client";
 import {
-  isFirebaseConfigured,
-  signInWithFirebasePassword,
-  signOutFirebase,
+    isFirebaseConfigured,
+    signInWithFirebasePassword,
+    signOutFirebase,
 } from "@/lib/auth/firebase";
 import { localIdentityProfileRepository } from "@/lib/auth/localProfileRepository";
+import { extractOidcIdentityClaims } from "@/lib/auth/oidc";
 import {
-  hydrateIdentityProfile,
-  persistIdentityProfile,
+    hydrateIdentityProfile,
+    persistIdentityProfile,
 } from "@/lib/auth/profileSync";
 import {
-  clearSession,
-  loadSession,
-  saveSession,
-  type StoredSession,
+    clearSession,
+    loadSession,
+    saveSession,
+    type StoredSession,
 } from "@/lib/auth/sessionStorage";
 import { getConfig } from "@/lib/config";
 import { normalizeTenantId } from "@/lib/tenancy/context";
@@ -435,13 +436,73 @@ export const useAuthStore = create<AuthState>((set) => ({
     });
   },
   signInWithOidcToken: async (session) => {
-    await saveSession(session);
+    const existingProfile = normalizeIdentityProfile(
+      await localIdentityProfileRepository.load(),
+    );
+    const claims = extractOidcIdentityClaims({
+      idToken: session.idToken,
+      accessToken: session.accessToken,
+    });
+    const nextSession = {
+      ...session,
+      userId: session.userId ?? claims?.userId ?? existingProfile?.userId,
+    } satisfies StoredSession;
+
+    const seededProfile = claims?.userId
+      ? toIdentityProfile({
+          role: claims.role ?? existingProfile?.role ?? "parent",
+          userId: claims.userId,
+          tenantId:
+            claims.tenantId ??
+            claims.schoolId ??
+            existingProfile?.tenantId ??
+            existingProfile?.schoolId,
+          schoolId:
+            claims.schoolId ??
+            claims.tenantId ??
+            existingProfile?.schoolId ??
+            existingProfile?.tenantId,
+          email: claims.email ?? existingProfile?.email ?? DEV_ACCOUNT_EMAIL,
+          homeAddress:
+            claims.homeAddress ?? existingProfile?.homeAddress ?? "123 Main St",
+        })
+      : existingProfile;
+
+    await saveSession(nextSession);
+
+    if (
+      seededProfile &&
+      JSON.stringify(seededProfile) !== JSON.stringify(existingProfile)
+    ) {
+      await persistIdentityProfile(seededProfile);
+    }
+
+    const hydratedIdentity = await hydrateIdentityProfile({
+      session: nextSession,
+      storedProfile: seededProfile,
+    });
+    const profile = normalizeIdentityProfile(hydratedIdentity.profile);
+
+    if (!hydratedIdentity.membershipContext && profile) {
+      syncTenantMembershipFromAuth({
+        tenantId: profile.tenantId ?? profile.schoolId,
+        role: profile.role,
+      });
+    }
+
     set({
       isAuthenticated: true,
-      accessToken: session.accessToken,
-      refreshToken: session.refreshToken,
-      idToken: session.idToken,
-      expiresAt: session.expiresAt,
+      role: profile?.role ?? "parent",
+      userId: profile?.userId ?? nextSession.userId ?? "mock-user",
+      tenantId: normalizeTenantId(profile?.tenantId ?? profile?.schoolId),
+      schoolId: normalizeTenantId(profile?.schoolId ?? profile?.tenantId),
+      email: profile?.email ?? existingProfile?.email ?? DEV_ACCOUNT_EMAIL,
+      homeAddress:
+        profile?.homeAddress ?? existingProfile?.homeAddress ?? "123 Main St",
+      accessToken: nextSession.accessToken,
+      refreshToken: nextSession.refreshToken,
+      idToken: nextSession.idToken,
+      expiresAt: nextSession.expiresAt,
     });
   },
   signOut: () => {

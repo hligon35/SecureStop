@@ -10,3 +10,10 @@ export interface AlertInboxRepository {
   save(inbox: AlertMessage[]): Promise<void>;
   clear(): Promise<void>;
 }
+
+export interface AlertInboxReadRepository {
+  loadRecent(params: {
+    tenantId: string;
+    limit?: number;
+  }): Promise<AlertMessage[]>;
+}

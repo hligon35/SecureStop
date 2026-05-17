@@ -15,9 +15,35 @@ import type {
 } from "@/core/incidents/types";
 import { publishDomainEvent } from "@/lib/events/bus";
 import { localIncidentsRepository } from "@/lib/incidents/localRepository";
+import { supabaseIncidentReadRepository } from "@/lib/incidents/supabaseReadRepository";
+import { normalizeTenantId } from "@/lib/tenancy/context";
+import { loadPersistedViewerContext } from "@/lib/tenancy/persistedViewerContext";
+import { useTenantMembershipStore } from "@/store/tenantMembership";
 
 function now() {
   return Date.now();
+}
+
+function getRuntimeTenantId() {
+  return normalizeTenantId(useTenantMembershipStore.getState().activeTenantId);
+}
+
+function mergeIncidents(
+  localIncidents: Incident[],
+  remoteIncidents: Incident[],
+) {
+  const byId = new Map<string, Incident>();
+
+  for (const incident of [...localIncidents, ...remoteIncidents]) {
+    const current = byId.get(incident.id);
+    if (!current || incident.updatedAt >= current.updatedAt) {
+      byId.set(incident.id, incident);
+    }
+  }
+
+  return [...byId.values()]
+    .sort((left, right) => right.updatedAt - left.updatedAt)
+    .slice(0, 200);
 }
 
 type IncidentsState = {
@@ -49,7 +75,19 @@ export const useIncidentsStore = create<IncidentsState>((set, get) => ({
   hydrated: false,
   incidents: [],
   hydrate: async () => {
-    const incidents = await localIncidentsRepository.load();
+    const [localIncidents, viewerContext] = await Promise.all([
+      localIncidentsRepository.load(),
+      loadPersistedViewerContext(),
+    ]);
+    const remoteIncidents = viewerContext?.tenantId
+      ? await supabaseIncidentReadRepository
+          .loadRecent({ tenantId: viewerContext.tenantId, limit: 200 })
+          .catch(() => [])
+      : [];
+    const incidents = mergeIncidents(localIncidents, remoteIncidents);
+    if (JSON.stringify(incidents) !== JSON.stringify(localIncidents)) {
+      localIncidentsRepository.save(incidents).catch(() => {});
+    }
     set({ incidents, hydrated: true });
   },
   upsertFromAlert: ({
@@ -98,9 +136,11 @@ export const useIncidentsStore = create<IncidentsState>((set, get) => ({
     });
 
     const event: IncidentCreatedEvent = createDomainEvent("incident.created", {
+      tenantId: getRuntimeTenantId() || undefined,
       incidentId: created.id,
       alertId: created.alertId,
       title: created.title,
+      description: created.description,
       severity: created.severity,
       vehicleId: created.vehicleId,
       createdAt: created.createdAt,
@@ -138,6 +178,7 @@ export const useIncidentsStore = create<IncidentsState>((set, get) => ({
     if (!updated) return;
 
     const event: IncidentNotedEvent = createDomainEvent("incident.noted", {
+      tenantId: getRuntimeTenantId() || undefined,
       incidentId: id,
       message,
       byRole,
@@ -180,6 +221,7 @@ export const useIncidentsStore = create<IncidentsState>((set, get) => ({
     const event: IncidentResolvedEvent = createDomainEvent(
       "incident.resolved",
       {
+        tenantId: getRuntimeTenantId() || undefined,
         incidentId: id,
         message: resolvedMessage,
         byRole,

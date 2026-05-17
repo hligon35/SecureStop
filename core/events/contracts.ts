@@ -27,6 +27,7 @@ type DomainEventBase<TName extends DomainEventName, TPayload> = {
 export type AlertReceivedEvent = DomainEventBase<
   "alert.received",
   {
+    tenantId?: string;
     alertId: string;
     title: string;
     body: string;
@@ -42,6 +43,7 @@ export type AlertReceivedEvent = DomainEventBase<
 export type AlertRemovedEvent = DomainEventBase<
   "alert.removed",
   {
+    tenantId?: string;
     alertId: string;
   }
 >;
@@ -49,9 +51,11 @@ export type AlertRemovedEvent = DomainEventBase<
 export type IncidentCreatedEvent = DomainEventBase<
   "incident.created",
   {
+    tenantId?: string;
     incidentId: string;
     alertId?: string;
     title: string;
+    description: string;
     severity: DomainAlertSeverity;
     vehicleId?: string;
     createdAt: number;
@@ -62,6 +66,7 @@ export type IncidentCreatedEvent = DomainEventBase<
 export type IncidentNotedEvent = DomainEventBase<
   "incident.noted",
   {
+    tenantId?: string;
     incidentId: string;
     message: string;
     byRole: Role;
@@ -72,6 +77,7 @@ export type IncidentNotedEvent = DomainEventBase<
 export type IncidentResolvedEvent = DomainEventBase<
   "incident.resolved",
   {
+    tenantId?: string;
     incidentId: string;
     message: string;
     byRole: Role;

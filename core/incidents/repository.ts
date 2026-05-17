@@ -5,3 +5,7 @@ export interface IncidentsRepository {
   save(incidents: Incident[]): Promise<void>;
   clear(): Promise<void>;
 }
+
+export interface IncidentReadRepository {
+  loadRecent(params: { tenantId: string; limit?: number }): Promise<Incident[]>;
+}

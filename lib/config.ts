@@ -1,5 +1,9 @@
 export type AppConfig = {
   apiBaseUrl: string;
+  cloudflare?: {
+    domainEventIngressBaseUrl?: string;
+    domainEventIngressPath: string;
+  };
   firebase?: {
     apiKey: string;
     authDomain?: string;
@@ -40,6 +44,10 @@ export function getConfig(): AppConfig {
   const apiBaseUrl = (
     process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://example.invalid/api"
   ).trim();
+  const cloudflareDomainEventIngressBaseUrl =
+    process.env.EXPO_PUBLIC_CLOUDFLARE_EVENTS_BASE_URL?.trim();
+  const cloudflareDomainEventIngressPath =
+    process.env.EXPO_PUBLIC_CLOUDFLARE_EVENTS_PATH?.trim() || "/events/domain";
   const firebaseApiKey = process.env.EXPO_PUBLIC_FIREBASE_API_KEY?.trim();
   const firebaseAuthDomain =
     process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN?.trim();
@@ -109,6 +117,13 @@ export function getConfig(): AppConfig {
 
   return {
     apiBaseUrl,
+    cloudflare:
+      cloudflareDomainEventIngressBaseUrl || cloudflareDomainEventIngressPath
+        ? {
+            domainEventIngressBaseUrl: cloudflareDomainEventIngressBaseUrl,
+            domainEventIngressPath: cloudflareDomainEventIngressPath,
+          }
+        : undefined,
     firebase:
       firebaseApiKey && firebaseProjectId && firebaseAppId
         ? {

@@ -3,25 +3,29 @@ import { create } from "zustand";
 import type { Role } from "@/constants/roles";
 import { createAlertMessage } from "@/core/alerts/catalog";
 import type {
-  AlertInboxRepository,
-  AlertPreferencesRepository,
+    AlertInboxRepository,
+    AlertPreferencesRepository,
 } from "@/core/alerts/repository";
 import type {
-  AlertMessage,
-  AlertSeverity,
-  NotificationPrefs,
-  RecipientGroup,
+    AlertMessage,
+    AlertSeverity,
+    NotificationPrefs,
+    RecipientGroup,
 } from "@/core/alerts/types";
 import {
-  createDomainEvent,
-  type AlertReceivedEvent,
-  type AlertRemovedEvent,
+    createDomainEvent,
+    type AlertReceivedEvent,
+    type AlertRemovedEvent,
 } from "@/core/events/contracts";
-import { localAlertPreferencesRepository } from "@/lib/alerts/localPreferencesRepository";
 import { localAlertInboxRepository } from "@/lib/alerts/localInboxRepository";
+import { localAlertPreferencesRepository } from "@/lib/alerts/localPreferencesRepository";
+import { supabaseAlertInboxReadRepository } from "@/lib/alerts/supabaseInboxReadRepository";
 import { publishDomainEvent } from "@/lib/events/bus";
 import { scheduleLocalAlertNotification } from "@/lib/notifications";
+import { normalizeTenantId } from "@/lib/tenancy/context";
+import { loadPersistedViewerContext } from "@/lib/tenancy/persistedViewerContext";
 import { useIncidentsStore } from "@/store/incidents";
+import { useTenantMembershipStore } from "@/store/tenantMembership";
 
 const alertPreferencesRepository: AlertPreferencesRepository =
   localAlertPreferencesRepository;
@@ -29,6 +33,28 @@ const alertInboxRepository: AlertInboxRepository = localAlertInboxRepository;
 
 function persistInbox(inbox: AlertMessage[]) {
   alertInboxRepository.save(inbox).catch(() => {});
+}
+
+function mergeInboxMessages(
+  localInbox: AlertMessage[],
+  remoteInbox: AlertMessage[],
+): AlertMessage[] {
+  const byId = new Map<string, AlertMessage>();
+
+  for (const message of [...localInbox, ...remoteInbox]) {
+    const current = byId.get(message.id);
+    if (!current || message.createdAt >= current.createdAt) {
+      byId.set(message.id, message);
+    }
+  }
+
+  return [...byId.values()]
+    .sort((left, right) => right.createdAt - left.createdAt)
+    .slice(0, 50);
+}
+
+function getRuntimeTenantId() {
+  return normalizeTenantId(useTenantMembershipStore.getState().activeTenantId);
 }
 
 function recipientsIncludeViewer(params: {
@@ -107,10 +133,22 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   driverRecipientSelection: "parents",
   hydrated: false,
   hydrate: async () => {
-    const [prefs, inbox] = await Promise.all([
+    const [prefs, localInbox, viewerContext] = await Promise.all([
       alertPreferencesRepository.load(),
       alertInboxRepository.load(),
+      loadPersistedViewerContext(),
     ]);
+
+    const remoteInbox = viewerContext?.tenantId
+      ? await supabaseAlertInboxReadRepository
+          .loadRecent({ tenantId: viewerContext.tenantId, limit: 50 })
+          .catch(() => [])
+      : [];
+    const inbox = mergeInboxMessages(localInbox, remoteInbox);
+    if (JSON.stringify(inbox) !== JSON.stringify(localInbox)) {
+      persistInbox(inbox);
+    }
+
     if (prefs) {
       set({ prefs, inbox, hydrated: true });
     } else {
@@ -145,6 +183,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     persistInbox(inbox);
 
     const event: AlertReceivedEvent = createDomainEvent("alert.received", {
+      tenantId: getRuntimeTenantId() || undefined,
       alertId: msg.id,
       title: msg.title,
       body: msg.body,
@@ -158,8 +197,8 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     publishDomainEvent(event);
   },
   removeAlertById: (id) => {
-    const exists = get().inbox.some((m) => m.id === id);
-    if (!exists) return;
+    const existingAlert = get().inbox.find((m) => m.id === id);
+    if (!existingAlert) return;
 
     const inbox = get().inbox.filter((m) => m.id !== id);
     set({ inbox });
@@ -170,6 +209,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     }
 
     const event: AlertRemovedEvent = createDomainEvent("alert.removed", {
+      tenantId: getRuntimeTenantId() || undefined,
       alertId: id,
     });
     publishDomainEvent(event);
@@ -208,3 +248,4 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 }));
 
 export type { AlertMessage, AlertSeverity, NotificationPrefs, RecipientGroup };
+
