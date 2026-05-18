@@ -1,0 +1,15 @@
+name = "securestop-domain-event-ingress"
+main = "domainEventIngressWorker.ts"
+compatibility_date = "2026-05-17"
+
+[vars]
+SUPABASE_SCHEMA = "public"
+
+[observability]
+enabled = true
+
+# Configure these as secrets with `wrangler secret put`.
+# SUPABASE_URL
+# SUPABASE_SERVICE_ROLE_KEY
+# INGRESS_SHARED_SECRET
+# INGRESS_SIGNING_SECRET

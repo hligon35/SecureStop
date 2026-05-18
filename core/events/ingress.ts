@@ -19,9 +19,24 @@ export type DomainEventProjectionOperation =
       key: string;
     };
 
+export type DomainEventIngressFailure = {
+  eventId: string;
+  eventName: DomainEvent["name"];
+  stage: "projection" | "apply" | "receipt";
+  message: string;
+};
+
 export type DomainEventIngressResponse = {
   accepted: number;
   projected: DomainEventProjectionOperation[];
+  failures?: DomainEventIngressFailure[];
+  metrics?: {
+    projectedCount: number;
+    duplicateCount: number;
+    unauthorizedCount: number;
+    invalidCount: number;
+    failedCount: number;
+  };
 };
 
 export function createDomainEventIngressRequest(

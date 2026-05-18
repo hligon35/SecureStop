@@ -20,7 +20,16 @@ export async function appendDomainEventToOutbox(
 export async function removeDomainEventFromOutbox(
   eventId: string,
 ): Promise<void> {
+  await removeDomainEventsFromOutbox([eventId]);
+}
+
+export async function removeDomainEventsFromOutbox(
+  eventIds: string[],
+): Promise<void> {
+  if (eventIds.length === 0) return;
+
+  const idSet = new Set(eventIds);
   const events = await loadDomainEventOutbox();
-  const next = events.filter((event) => event.id !== eventId);
+  const next = events.filter((event) => !idSet.has(event.id));
   await setJson(KEY, next.length > 0 ? { events: next } : undefined);
 }

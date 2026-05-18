@@ -3,9 +3,9 @@ import type { DomainEventSink } from "@/core/events/sink";
 import { subscribeToDomainEvent } from "@/lib/events/bus";
 import { cloudflareEventSink } from "@/lib/events/cloudflareEventSink";
 import {
-  appendDomainEventToOutbox,
-  loadDomainEventOutbox,
-  removeDomainEventFromOutbox,
+    appendDomainEventToOutbox,
+    loadDomainEventOutbox,
+    removeDomainEventsFromOutbox,
 } from "@/lib/events/localOutboxRepository";
 
 const localOutboxSink: DomainEventSink = {
@@ -19,10 +19,32 @@ const remoteSinks: DomainEventSink[] = [cloudflareEventSink];
 let started = false;
 let stopForwarding: (() => void) | undefined;
 let drainingOutbox: Promise<void> | undefined;
+let liveBatchFlush: Promise<void> | undefined;
+let pendingLiveEvents: DomainEvent[] = [];
 
-async function publishToRemoteSinks(event: DomainEvent): Promise<boolean> {
+function chunkEvents(events: DomainEvent[], size: number): DomainEvent[][] {
+  const chunks: DomainEvent[][] = [];
+  for (let index = 0; index < events.length; index += size) {
+    chunks.push(events.slice(index, index + size));
+  }
+  return chunks;
+}
+
+async function publishBatchToRemoteSinks(
+  events: DomainEvent[],
+): Promise<boolean> {
+  if (events.length === 0) return true;
+
   const results = await Promise.allSettled(
-    remoteSinks.map((sink) => sink.publish(event)),
+    remoteSinks.map((sink) => {
+      if (sink.publishMany) {
+        return sink.publishMany(events);
+      }
+
+      return Promise.all(events.map((event) => sink.publish(event))).then(
+        () => undefined,
+      );
+    }),
   );
   return results.every((result) => result.status === "fulfilled");
 }
@@ -35,19 +57,56 @@ async function forwardDomainEvent(
     await localOutboxSink.publish(event);
   }
 
-  const delivered = await publishToRemoteSinks(event);
+  await enqueueLiveEventBatch([event]);
+}
+
+async function deliverPersistedBatch(events: DomainEvent[]): Promise<void> {
+  const delivered = await publishBatchToRemoteSinks(events);
   if (delivered) {
-    await removeDomainEventFromOutbox(event.id);
+    await removeDomainEventsFromOutbox(events.map((event) => event.id));
   }
+}
+
+async function flushPendingLiveEvents(): Promise<void> {
+  if (pendingLiveEvents.length === 0) return;
+
+  const byId = new Map<string, DomainEvent>();
+  for (const event of pendingLiveEvents) {
+    byId.set(event.id, event);
+  }
+  pendingLiveEvents = [];
+
+  const events = [...byId.values()];
+  const delivered = await publishBatchToRemoteSinks(events);
+  if (delivered) {
+    await removeDomainEventsFromOutbox(events.map((event) => event.id));
+  }
+}
+
+function enqueueLiveEventBatch(events: DomainEvent[]): Promise<void> {
+  pendingLiveEvents.push(...events);
+
+  if (!liveBatchFlush) {
+    liveBatchFlush = Promise.resolve()
+      .then(() => flushPendingLiveEvents())
+      .finally(() => {
+        liveBatchFlush = undefined;
+        if (pendingLiveEvents.length > 0) {
+          void enqueueLiveEventBatch([]);
+        }
+      });
+  }
+
+  return liveBatchFlush;
 }
 
 async function drainPersistedOutbox(): Promise<void> {
   const events = await loadDomainEventOutbox();
-  for (const event of events) {
+  for (const batch of chunkEvents(events, 25)) {
     try {
-      await forwardDomainEvent(event, { alreadyPersisted: true });
+      await deliverPersistedBatch(batch);
     } catch {
-      // Keep the event in the outbox and retry on the next startup/event.
+      // Keep the batch in the outbox and retry on the next startup/event.
     }
   }
 }

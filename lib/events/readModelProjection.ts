@@ -17,6 +17,22 @@ export type IncidentReadModelRecord = {
   events: IncidentEvent[];
 };
 
+function mergeIncidentEvents(
+  currentEvents: IncidentEvent[],
+  nextEvent: IncidentEvent,
+): IncidentEvent[] {
+  const byId = new Map<string, IncidentEvent>();
+
+  for (const event of [...currentEvents, nextEvent]) {
+    const existing = byId.get(event.id);
+    if (!existing || event.at >= existing.at) {
+      byId.set(event.id, event);
+    }
+  }
+
+  return [...byId.values()].sort((left, right) => left.at - right.at);
+}
+
 function createIncidentEventEntry(params: {
   id: string;
   at: number;
@@ -116,6 +132,14 @@ function projectIncidentNoted(
   const tenantId = event.payload.tenantId?.trim() ?? current?.tenant_id?.trim();
   if (!tenantId || !current) return [];
 
+  const noteEvent = createIncidentEventEntry({
+    id: `${event.id}-note`,
+    at: event.payload.notedAt,
+    byRole: event.payload.byRole,
+    type: "note",
+    message: event.payload.message,
+  });
+
   return [
     {
       type: "upsert",
@@ -125,16 +149,7 @@ function projectIncidentNoted(
         ...current,
         tenant_id: tenantId,
         updated_at: event.payload.notedAt,
-        events: [
-          ...current.events,
-          createIncidentEventEntry({
-            id: `${event.id}-note`,
-            at: event.payload.notedAt,
-            byRole: event.payload.byRole,
-            type: "note",
-            message: event.payload.message,
-          }),
-        ],
+        events: mergeIncidentEvents(current.events, noteEvent),
       },
     },
   ];
@@ -147,6 +162,14 @@ function projectIncidentResolved(
   const tenantId = event.payload.tenantId?.trim() ?? current?.tenant_id?.trim();
   if (!tenantId || !current) return [];
 
+  const resolvedEvent = createIncidentEventEntry({
+    id: `${event.id}-resolved`,
+    at: event.payload.resolvedAt,
+    byRole: event.payload.byRole,
+    type: "resolved",
+    message: event.payload.message,
+  });
+
   return [
     {
       type: "upsert",
@@ -157,16 +180,7 @@ function projectIncidentResolved(
         tenant_id: tenantId,
         status: "resolved",
         updated_at: event.payload.resolvedAt,
-        events: [
-          ...current.events,
-          createIncidentEventEntry({
-            id: `${event.id}-resolved`,
-            at: event.payload.resolvedAt,
-            byRole: event.payload.byRole,
-            type: "resolved",
-            message: event.payload.message,
-          }),
-        ],
+        events: mergeIncidentEvents(current.events, resolvedEvent),
       },
     },
   ];

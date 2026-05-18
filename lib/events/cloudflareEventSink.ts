@@ -24,9 +24,12 @@ function getDomainEventIngressEndpoint(): string | undefined {
 
 export const cloudflareEventSink: DomainEventSink = {
   async publish(event: DomainEvent): Promise<void> {
+    await this.publishMany?.([event]);
+  },
+  async publishMany(events: DomainEvent[]): Promise<void> {
     const endpoint = getDomainEventIngressEndpoint();
-    if (!endpoint) return;
+    if (!endpoint || events.length === 0) return;
 
-    await api.post(endpoint, createDomainEventIngressRequest([event]));
+    await api.post(endpoint, createDomainEventIngressRequest(events));
   },
 };
