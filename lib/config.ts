@@ -1,5 +1,8 @@
 export type AppConfig = {
   apiBaseUrl: string;
+  sentry?: {
+    dsn: string;
+  };
   cloudflare?: {
     domainEventIngressBaseUrl?: string;
     domainEventIngressPath: string;
@@ -44,6 +47,7 @@ export function getConfig(): AppConfig {
   const apiBaseUrl = (
     process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://example.invalid/api"
   ).trim();
+  const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN?.trim();
   const cloudflareDomainEventIngressBaseUrl =
     process.env.EXPO_PUBLIC_CLOUDFLARE_EVENTS_BASE_URL?.trim();
   const cloudflareDomainEventIngressPath =
@@ -117,6 +121,7 @@ export function getConfig(): AppConfig {
 
   return {
     apiBaseUrl,
+    sentry: sentryDsn ? { dsn: sentryDsn } : undefined,
     cloudflare:
       cloudflareDomainEventIngressBaseUrl || cloudflareDomainEventIngressPath
         ? {

@@ -23,11 +23,19 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.haroldligon.securestop",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "SecureStop uses your location while you are actively using driver tools to show route position updates and ETAs.",
+        "NSCameraUsageDescription": "SecureStop uses the camera for code scanning and route-related verification flows."
       }
     },
     "android": {
       "package": "com.haroldligon.securestop",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "CAMERA",
+        "POST_NOTIFICATIONS"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#ffffff"
@@ -42,6 +50,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-notifications",
       "expo-secure-store",
       "expo-updates",
       [

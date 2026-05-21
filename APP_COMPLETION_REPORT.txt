@@ -1,0 +1,123 @@
+----------------------------------------------
+[1. UI/UX & Layout Completion]
+Status: Improved
+Actions Taken:
+- Reviewed routed app shells, header/navigation surfaces, and notification entry points.
+- Improved header accessibility semantics in components/AppHeader.tsx by adding clearer screen reader labeling and a header role for the current screen title.
+Remaining Gaps:
+- Major screen-by-screen responsive and accessibility review is still needed across admin web, driver, and parent flows.
+- No automated accessibility tests or visual regression checks exist.
+Notes:
+- Existing layout structure is coherent, but UI polish and accessibility coverage are still manual-review items.
+----------------------------------------------
+[2. Functionality Completion]
+Status: Improved
+Actions Taken:
+- Audited auth bootstrap, notification registration, tenant selection, and location tracking paths.
+- Confirmed auth already fails fast when neither Firebase nor a real API base URL is configured.
+- Added a repeatable typecheck command in package.json to catch functional regressions earlier.
+Remaining Gaps:
+- End-to-end functional flows are not covered by automated tests.
+- Driver, parent, and admin critical-path scenarios still need manual device validation.
+Notes:
+- Core flows appear scaffolded, but completion confidence is limited by missing integration and device tests.
+----------------------------------------------
+[3. API & Backend Integration]
+Status: Improved
+Actions Taken:
+- Audited lib/api/client.ts, Supabase client setup, Cloudflare ingress configuration, and auth API login path.
+- Reworked lib/api/client.ts to use typed Axios header handling instead of loose any-casts.
+- Added centralized API failure capture to Sentry for HTTP error responses.
+- Moved Sentry DSN configuration into lib/config.ts so backend/observability config is centralized and environment-driven.
+Remaining Gaps:
+- No global retry/backoff strategy exists for general API failures outside the location upload queue.
+- No integration tests verify API contracts against a live or mocked backend.
+Notes:
+- Workspace-wide diagnostics reported SQL errors in supabase/migrations/0003_domain_event_receipts.sql, but those appear to come from a SQL Server parser reading PostgreSQL syntax rather than an actual migration defect.
+----------------------------------------------
+[4. Security Hardening]
+Status: Improved
+Actions Taken:
+- Removed the committed Sentry DSN from app/_layout.tsx and replaced it with EXPO_PUBLIC_SENTRY_DSN sourced through lib/config.ts.
+- Confirmed native session persistence already prefers expo-secure-store and falls back safely when unavailable.
+- Added .env.example so required public runtime configuration is explicit rather than inferred from source.
+Remaining Gaps:
+- Web session persistence still uses localStorage, which is a tradeoff that should be reviewed against the project threat model.
+- Secrets management for non-public values such as worker service keys still requires deployment-side verification.
+Notes:
+- The changes in this pass reduce accidental secret exposure without changing authentication behavior.
+----------------------------------------------
+[5. Testing & QA]
+Status: Improved
+Actions Taken:
+- Audited existing test coverage and confirmed only a single component snapshot test exists today.
+- Added npm run typecheck as a fast, repeatable QA gate.
+- Executed npm run typecheck successfully after the audit changes.
+- Ran focused file diagnostics plus a workspace error sweep.
+Remaining Gaps:
+- No unit test framework is configured for current TypeScript app logic beyond the existing legacy snapshot test.
+- No E2E, device, accessibility, or API integration tests are present.
+Notes:
+- Typecheck is now the minimum automated quality bar, but test coverage remains the largest QA gap.
+----------------------------------------------
+[6. Architecture & Code Quality]
+Status: Improved
+Actions Taken:
+- Audited central config, root layout, auth store, API client, and Supabase client ownership boundaries.
+- Extended lib/config.ts to own Sentry runtime configuration alongside other public environment inputs.
+- Removed unsafe header mutation casts in lib/api/client.ts.
+Remaining Gaps:
+- Several areas still use broad casts and scaffold-style fallbacks that should be tightened gradually.
+- Architecture documentation for role flows, backend ownership, and data synchronization remains incomplete.
+Notes:
+- The codebase already has useful module boundaries; the main remaining work is consistency and coverage rather than a full redesign.
+----------------------------------------------
+[7. DevOps & Build Pipeline]
+Status: Improved
+Actions Taken:
+- Reviewed package scripts, EAS configuration, and existing repo memory notes for build behavior.
+- Added a GitHub Actions workflow at .github/workflows/ci.yml to run npm ci and npm run typecheck on pushes and pull requests.
+- Added a durable typecheck script to package.json so local and CI validation use the same command.
+Remaining Gaps:
+- CI currently validates type safety only; it does not run tests, Expo export, linting, or deployment checks.
+- No release checklist automation exists for EAS build, submit, or OTA promotion.
+Notes:
+- Existing EAS configuration is usable; this pass mainly closes the missing continuous validation gap.
+----------------------------------------------
+[8. Compliance & App Store Requirements]
+Status: Improved
+Actions Taken:
+- Reviewed app.json for store-facing metadata and runtime permission declarations.
+- Added iOS usage descriptions for location and camera access in app.json.
+- Added Android permissions for location, camera, and notifications in app.json.
+- Added the expo-notifications plugin to app.json so notification-related native config is represented explicitly.
+Remaining Gaps:
+- Final App Store and Play Store listing content, privacy disclosures, and data safety forms still require human/legal review.
+- Permission copy should be verified against the actual user experience on device.
+Notes:
+- This pass addresses obvious build-review metadata gaps for features already present in the codebase.
+----------------------------------------------
+[9. Analytics & Observability]
+Status: Improved
+Actions Taken:
+- Audited Sentry initialization and current observability touchpoints.
+- Moved Sentry DSN to environment configuration.
+- Added centralized Sentry capture for API response failures in lib/api/client.ts.
+Remaining Gaps:
+- No product analytics event taxonomy or user journey instrumentation is present.
+- Observability does not yet include structured app-level breadcrumbs for critical flows like login, tenant selection, or push registration.
+Notes:
+- Error monitoring is now safer and more maintainable, but analytics remains minimal.
+----------------------------------------------
+[10. Product Strategy & Launch Readiness (code-related items only)]
+Status: Improved
+Actions Taken:
+- Added .env.example to reduce onboarding and release misconfiguration risk.
+- Added CI typecheck automation to catch regressions before release.
+- Captured the current audit state and remaining gaps in this report for launch planning.
+Remaining Gaps:
+- Launch readiness still depends on manual validation of core role-based flows, backend readiness, store assets, and support processes.
+- Demo-mode and scaffold fallbacks should be reviewed before production launch to ensure they match intended go-live behavior.
+Notes:
+- The repo is closer to operational readiness after this pass, but launch confidence is still constrained by limited automated testing and manual acceptance coverage.
+----------------------------------------------

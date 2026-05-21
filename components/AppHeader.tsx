@@ -152,7 +152,11 @@ export function AppHeader(props: { title?: string }) {
             </View>
           </View>
 
-          <Text variant="titleMedium" style={{ marginTop: 2 }}>
+          <Text
+            accessibilityLabel={`${appTitle} app title`}
+            variant="titleMedium"
+            style={{ marginTop: 2 }}
+          >
             {appTitle}
           </Text>
 
@@ -213,6 +217,7 @@ export function AppHeader(props: { title?: string }) {
         }}
       >
         <Text
+          accessibilityRole="header"
           variant="labelSmall"
           style={{ color: theme.colors.onSurfaceVariant, textAlign: "center" }}
         >

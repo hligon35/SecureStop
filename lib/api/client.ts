@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/react-native";
 import axios from "axios";
 
 import { getConfig } from "@/lib/config";
@@ -35,16 +36,44 @@ api.interceptors.request.use((config) => {
     legacySchoolId: providers.getSchoolId(),
   });
 
-  config.headers = config.headers ?? {};
+  const headers = axios.AxiosHeaders.from(config.headers);
 
   if (accessToken) {
-    (config.headers as any).Authorization = `Bearer ${accessToken}`;
+    headers.set("Authorization", `Bearer ${accessToken}`);
   }
   if (tenantContext) {
-    (config.headers as any)[TENANT_HEADER] = tenantContext.tenantId;
-    (config.headers as any)[LEGACY_SCHOOL_HEADER] =
-      tenantContext.legacySchoolId ?? tenantContext.tenantId;
+    headers.set(TENANT_HEADER, tenantContext.tenantId);
+    headers.set(
+      LEGACY_SCHOOL_HEADER,
+      tenantContext.legacySchoolId ?? tenantContext.tenantId,
+    );
   }
+
+  config.headers = headers;
 
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  (error: unknown) => {
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      if (status && status >= 400) {
+        Sentry.captureException(error, {
+          tags: {
+            area: "api",
+            status: String(status),
+          },
+          extra: {
+            method: error.config?.method,
+            url: error.config?.url,
+            baseURL: error.config?.baseURL,
+          },
+        });
+      }
+    }
+
+    return Promise.reject(error);
+  },
+);

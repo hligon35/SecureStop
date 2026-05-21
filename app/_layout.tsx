@@ -2,9 +2,9 @@ import "react-native-gesture-handler";
 
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import {
-  DarkTheme,
-  DefaultTheme,
-  ThemeProvider,
+    DarkTheme,
+    DefaultTheme,
+    ThemeProvider,
 } from "@react-navigation/native";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
@@ -27,26 +27,30 @@ import { useAuthStore } from "@/store/auth";
 import { useIncidentsStore } from "@/store/incidents";
 import { useNotificationStore } from "@/store/notifications";
 import { useTenantMembershipStore } from "@/store/tenantMembership";
-import * as Notifications from "expo-notifications";
 import * as Sentry from "@sentry/react-native";
+import * as Notifications from "expo-notifications";
 
-Sentry.init({
-  dsn: "https://7ab842cd78b2d77083dce583c870b481@o4510654674632704.ingest.us.sentry.io/4511386166427648",
+const appConfig = getConfig();
 
-  // Adds more context data to events (IP address, cookies, user, etc.)
-  // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
-  sendDefaultPii: true,
+if (appConfig.sentry?.dsn) {
+  Sentry.init({
+    dsn: appConfig.sentry.dsn,
 
-  // Enable Logs
-  enableLogs: true,
+    // Adds more context data to events (IP address, cookies, user, etc.)
+    // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
+    sendDefaultPii: true,
 
-  // uncomment the line below to enable Spotlight (https://spotlightjs.com)
-  // spotlight: __DEV__,
-});
+    // Enable Logs
+    enableLogs: true,
+
+    // uncomment the line below to enable Spotlight (https://spotlightjs.com)
+    // spotlight: __DEV__,
+  });
+}
 
 export {
-  // Catch any errors thrown by the Layout component.
-  ErrorBoundary,
+    // Catch any errors thrown by the Layout component.
+    ErrorBoundary
 } from "expo-router";
 
 export const unstable_settings = {

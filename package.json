@@ -2,11 +2,13 @@
   "name": "securestop",
   "main": "expo-router/entry",
   "version": "1.0.0",
+  "packageManager": "npm@10.9.8",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
     "cloudflare:dev": "npx wrangler dev --config cloudflare/wrangler.toml",
     "cloudflare:deploy": "npx wrangler deploy --config cloudflare/wrangler.toml",
     "cloudflare:test:relay": "node cloudflare/testRelayFixture.mjs",
