@@ -1,5 +1,6 @@
 import * as Location from "expo-location";
 import { usePathname, useRouter } from "expo-router";
+import * as Updates from "expo-updates";
 import { useCallback, useEffect, useState } from "react";
 import { Platform, View } from "react-native";
 import { IconButton, Menu, useTheme } from "react-native-paper";
@@ -10,6 +11,10 @@ import type { Role } from "@/constants/roles";
 import { ROLE_LABEL, ROLES } from "@/constants/roles";
 import { roleRootPath } from "@/constants/routes";
 import { getConfig } from "@/lib/config";
+import {
+    formatDemoFleetMenuTitle,
+    resolveDemoFleetMode,
+} from "@/lib/location/demoFleet";
 import { useAuthStore } from "@/store/auth";
 import { useLocationStore } from "@/store/location";
 
@@ -33,6 +38,10 @@ export function DevRoleSwitcher(props?: { variant?: "floating" | "header" }) {
 
   const [open, setOpen] = useState(false);
   const [gpsBusy, setGpsBusy] = useState(false);
+  const [otaBusy, setOtaBusy] = useState(false);
+  const [otaStatus, setOtaStatus] = useState<
+    "idle" | "checking" | "downloading" | "none" | "error"
+  >("idle");
 
   const devEnabled = typeof __DEV__ !== "undefined" ? __DEV__ : false;
   const demoFleetFlag = process.env.EXPO_PUBLIC_DEMO_FLEET;
@@ -44,14 +53,13 @@ export function DevRoleSwitcher(props?: { variant?: "floating" | "header" }) {
     cfg.features.enableDemoLogin ||
     role === "admin" ||
     seededDemoAccess;
-  const demoModeEnabled =
-    demoFleetFlag === "true"
-      ? true
-      : demoFleetFlag === "false"
-        ? false
-        : typeof demoFleetOverride === "boolean"
-          ? demoFleetOverride
-          : !devEnabled;
+  const demoFleetMode = resolveDemoFleetMode({
+    envFlag: demoFleetFlag,
+    override: demoFleetOverride,
+  });
+  const demoModeEnabled = demoFleetMode.enabled;
+  const otaSupported =
+    Platform.OS !== "web" && !devEnabled && Updates.isEnabled;
 
   if (!demoAccessEnabled) return null;
 
@@ -94,6 +102,43 @@ export function DevRoleSwitcher(props?: { variant?: "floating" | "header" }) {
     }
   }, [setVehicleLocation]);
 
+  const pullOtaUpdate = useCallback(async () => {
+    if (!otaSupported || otaBusy) return;
+
+    setOpen(false);
+    setOtaBusy(true);
+    setOtaStatus("checking");
+
+    try {
+      const update = await Updates.checkForUpdateAsync();
+
+      if (!update.isAvailable) {
+        setOtaStatus("none");
+        return;
+      }
+
+      setOtaStatus("downloading");
+      await Updates.fetchUpdateAsync();
+      await Updates.reloadAsync();
+    } catch {
+      setOtaStatus("error");
+    } finally {
+      setOtaBusy(false);
+    }
+  }, [otaBusy, otaSupported]);
+
+  const otaMenuTitle = otaBusy
+    ? otaStatus === "downloading"
+      ? "Pull OTA update (downloading...)"
+      : "Pull OTA update (checking...)"
+    : otaStatus === "none"
+      ? "Pull OTA update (no update found)"
+      : otaStatus === "error"
+        ? "Pull OTA update (failed)"
+        : !otaSupported
+          ? "Pull OTA update (release build only)"
+          : "Pull OTA update now";
+
   const menu = (
     <Menu
       visible={open}
@@ -106,7 +151,7 @@ export function DevRoleSwitcher(props?: { variant?: "floating" | "header" }) {
           containerColor={theme.colors.surfaceVariant}
           accessibilityLabel="Developer role switcher"
           style={{ margin: 0, width: 34, height: 34 }}
-          onPress={() => setOpen((v) => !v)}
+          onPress={() => setOpen(true)}
         />
       }
     >
@@ -119,8 +164,16 @@ export function DevRoleSwitcher(props?: { variant?: "floating" | "header" }) {
         />
       ) : null}
       <Menu.Item
-        title={`Demo mode: ${demoModeEnabled ? "ON" : "OFF"}${typeof demoFleetOverride === "boolean" ? " ✓" : ""}`}
+        title={otaMenuTitle}
+        disabled={!otaSupported || otaBusy}
+        onPress={pullOtaUpdate}
+        leadingIcon="download-circle-outline"
+      />
+      <Menu.Item
+        title={formatDemoFleetMenuTitle(demoFleetMode)}
+        disabled={demoFleetMode.isLocked}
         onPress={() => {
+          if (demoFleetMode.isLocked) return;
           setOpen(false);
           setDemoFleetOverride(!demoModeEnabled);
         }}

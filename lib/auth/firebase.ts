@@ -1,6 +1,7 @@
 import { getConfig } from "@/lib/config";
 import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
 import {
+    deleteUser,
     getAuth,
     signInWithEmailAndPassword,
     signOut,
@@ -51,4 +52,14 @@ export async function signOutFirebase(): Promise<void> {
   if (!auth.currentUser) return;
 
   await signOut(auth);
+}
+
+export async function deleteFirebaseAccount(): Promise<boolean> {
+  if (!isFirebaseConfigured()) return false;
+
+  const auth = getFirebaseAuth();
+  if (!auth.currentUser) return false;
+
+  await deleteUser(auth.currentUser);
+  return true;
 }

@@ -9,6 +9,7 @@ import type { AuthLoginRequest, AuthLoginResponse } from "@/core/api/contracts";
 import type { IdentityProfile } from "@/core/identity/types";
 import { api, configureApiAuthProviders } from "@/lib/api/client";
 import {
+    deleteFirebaseAccount,
     isFirebaseConfigured,
     signInWithFirebasePassword,
     signOutFirebase,
@@ -150,8 +151,16 @@ type AuthState = {
     password: string;
   }) => Promise<void>;
   signInWithOidcToken: (params: StoredSession) => Promise<void>;
+  deleteAccount: () => Promise<{ deletedRemotely: boolean }>;
   signOut: () => void;
 };
+
+function clearLocalAuthArtifacts() {
+  clearSession();
+  signOutFirebase().catch(() => {});
+  useTenantMembershipStore.getState().clear();
+  localIdentityProfileRepository.clear().catch(() => {});
+}
 
 export const useAuthStore = create<AuthState>((set) => ({
   isAuthenticated: false,
@@ -505,11 +514,45 @@ export const useAuthStore = create<AuthState>((set) => ({
       expiresAt: nextSession.expiresAt,
     });
   },
+  deleteAccount: async () => {
+    const state = useAuthStore.getState();
+    const seededDemoAccount = isSeededDemoEmail(state.email);
+
+    if (isFirebaseConfigured()) {
+      const deletedRemotely = await deleteFirebaseAccount();
+      clearLocalAuthArtifacts();
+      set({
+        isAuthenticated: false,
+        accessToken: undefined,
+        refreshToken: undefined,
+        idToken: undefined,
+        expiresAt: undefined,
+        tenantId: "",
+        schoolId: "",
+      });
+      return { deletedRemotely };
+    }
+
+    if (seededDemoAccount || !state.accessToken) {
+      clearLocalAuthArtifacts();
+      set({
+        isAuthenticated: false,
+        accessToken: undefined,
+        refreshToken: undefined,
+        idToken: undefined,
+        expiresAt: undefined,
+        tenantId: "",
+        schoolId: "",
+      });
+      return { deletedRemotely: false };
+    }
+
+    throw new Error(
+      "Account deletion is not connected for this sign-in provider yet. Contact an administrator or use the backend account management flow.",
+    );
+  },
   signOut: () => {
-    clearSession();
-    signOutFirebase().catch(() => {});
-    useTenantMembershipStore.getState().clear();
-    localIdentityProfileRepository.clear().catch(() => {});
+    clearLocalAuthArtifacts();
     set({
       isAuthenticated: false,
       accessToken: undefined,

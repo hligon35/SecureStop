@@ -3,8 +3,10 @@ import { ScrollView, View } from "react-native";
 import {
     Button,
     Card,
+    Dialog,
     Divider,
     IconButton,
+    Portal,
     Snackbar,
     Switch,
     Text,
@@ -34,6 +36,8 @@ export function ProfileScreen(props: {
   const email = useAuthStore((s) => s.email);
   const homeAddress = useAuthStore((s) => s.homeAddress);
   const passwordMock = useAuthStore((s) => s.passwordMock);
+  const deleteAccount = useAuthStore((s) => s.deleteAccount);
+  const signOut = useAuthStore((s) => s.signOut);
   const setAccount = useAuthStore((s) => s.setAccount);
   const userId = useAuthStore((s) => s.userId);
 
@@ -45,6 +49,10 @@ export function ProfileScreen(props: {
   const [draftHomeAddress, setDraftHomeAddress] = useState(homeAddress);
   const [draftPassword, setDraftPassword] = useState(passwordMock);
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [accountBusy, setAccountBusy] = useState<"delete" | "logout" | null>(
+    null,
+  );
   const [snack, setSnack] = useState<string | null>(null);
 
   const name = useMemo(
@@ -91,6 +99,32 @@ export function ProfileScreen(props: {
     setConfirmPassword("");
     setIsEditing(false);
     setSnack("Profile saved");
+  }
+
+  function handleSignOut() {
+    setAccountBusy("logout");
+    signOut();
+    setAccountBusy(null);
+    setSnack("Signed out");
+  }
+
+  async function handleDeleteAccount() {
+    setAccountBusy("delete");
+    try {
+      const result = await deleteAccount();
+      setDeleteDialogOpen(false);
+      setSnack(
+        result.deletedRemotely
+          ? "Account deleted"
+          : "Local demo account cleared",
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to delete account.";
+      setSnack(message);
+    } finally {
+      setAccountBusy(null);
+    }
   }
 
   return (
@@ -288,7 +322,70 @@ export function ProfileScreen(props: {
             />
           </View>
         </View>
+
+        <View style={{ gap: 12 }}>
+          <Text
+            variant="labelSmall"
+            style={{ color: theme.colors.onSurfaceVariant }}
+          >
+            Account
+          </Text>
+          <Divider style={{ marginTop: -6, marginBottom: 6, opacity: 0.25 }} />
+
+          <Button
+            mode="outlined"
+            icon="logout"
+            disabled={accountBusy !== null}
+            onPress={handleSignOut}
+          >
+            {accountBusy === "logout" ? "Signing out..." : "Log out"}
+          </Button>
+
+          <Button
+            mode="contained-tonal"
+            icon="delete-outline"
+            buttonColor={theme.colors.errorContainer}
+            textColor={theme.colors.onErrorContainer}
+            disabled={accountBusy !== null}
+            onPress={() => setDeleteDialogOpen(true)}
+          >
+            Delete account
+          </Button>
+        </View>
       </ScrollView>
+
+      <Portal>
+        <Dialog
+          visible={deleteDialogOpen}
+          onDismiss={() => {
+            if (accountBusy) return;
+            setDeleteDialogOpen(false);
+          }}
+        >
+          <Dialog.Title>Delete account?</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium">
+              This will sign you out and remove your account data from this app.
+              Firebase-backed accounts will also be deleted remotely.
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button
+              onPress={() => setDeleteDialogOpen(false)}
+              disabled={accountBusy !== null}
+            >
+              Cancel
+            </Button>
+            <Button
+              onPress={handleDeleteAccount}
+              disabled={accountBusy !== null}
+              textColor={theme.colors.error}
+            >
+              {accountBusy === "delete" ? "Deleting..." : "Delete"}
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
 
       <Snackbar
         visible={!!snack}

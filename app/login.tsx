@@ -36,7 +36,6 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [snack, setSnack] = useState<string | null>(null);
 
-  // Password peek icon is intentionally gated to demo/dev builds.
   const [devPeekEnabled, setDevPeekEnabled] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
 
@@ -138,15 +137,13 @@ export default function LoginScreen() {
                 secureTextEntry={!passwordVisible}
                 autoCapitalize="none"
                 right={
-                  devPeekEnabled ? (
-                    <TextInput.Icon
-                      icon={passwordVisible ? "eye-off" : "eye"}
-                      accessibilityLabel={
-                        passwordVisible ? "Hide password" : "Show password"
-                      }
-                      onPress={() => setPasswordVisible((v) => !v)}
-                    />
-                  ) : undefined
+                  <TextInput.Icon
+                    icon={passwordVisible ? "eye-off" : "eye"}
+                    accessibilityLabel={
+                      passwordVisible ? "Hide password" : "Show password"
+                    }
+                    onPress={() => setPasswordVisible((v) => !v)}
+                  />
                 }
               />
 

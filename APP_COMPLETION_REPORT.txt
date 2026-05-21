@@ -4,6 +4,8 @@ Status: Improved
 Actions Taken:
 - Reviewed routed app shells, header/navigation surfaces, and notification entry points.
 - Improved header accessibility semantics in components/AppHeader.tsx by adding clearer screen reader labeling and a header role for the current screen title.
+- Fixed a dev-switcher header-menu interaction in components/DevRoleSwitcher.tsx so the menu reopens reliably after changing demo mode instead of immediately closing on the next tap.
+- Clarified fleet demo behavior by making demo activation explicit, labeling env-locked demo state in the dev switcher, and surfacing a scripted-demo banner in the admin fleet screen.
 Remaining Gaps:
 - Major screen-by-screen responsive and accessibility review is still needed across admin web, driver, and parent flows.
 - No automated accessibility tests or visual regression checks exist.
@@ -20,6 +22,7 @@ Actions Taken:
 - Added auth-store flow coverage for API password sign-in persistence, OIDC token hydration, and misconfiguration guardrails in store/__tests__/auth.test.ts.
 - Added tenant membership store coverage for hydrate, replaceContext, auth sync, and clear behavior in store/__tests__/tenantMembership.test.ts.
 - Added a tenant-selection screen smoke test in app/__tests__/select-tenant.test.tsx covering admin redirect and custom tenant-code continuation.
+- Centralized demo-fleet resolution in lib/location/demoFleet.ts so demo state no longer depends on duplicated fallback logic or an implicit non-dev default.
 Remaining Gaps:
 - End-to-end functional flows are not covered by automated tests.
 - Driver, parent, and admin critical-path scenarios still need manual device validation.
@@ -67,6 +70,8 @@ Actions Taken:
 - Added store/__tests__/tenantMembership.test.ts for persisted tenant context hydration, normalization, deduplication, and clear semantics.
 - Added lib/tenancy/__tests__/context.test.ts for tenant-id normalization and tenant-context helper behavior.
 - Added app/__tests__/select-tenant.test.tsx for admin redirect and custom tenant selection smoke coverage.
+- Added components/__tests__/DevRoleSwitcher.test.tsx to lock in the header dev-menu reopen behavior after demo-mode changes.
+- Added lib/location/__tests__/demoFleet.test.ts and expanded components/__tests__/DevRoleSwitcher.test.tsx so demo-fleet defaults, env-locking, and manual toggle behavior are covered.
 - Updated the legacy StyledText snapshot test so it runs cleanly under the current React test renderer.
 - Executed npm test successfully after the second-pass changes.
 - Executed npm run typecheck successfully after the audit changes.

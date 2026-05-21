@@ -1,17 +1,48 @@
-import { useRouter } from 'expo-router';
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, FlatList, Image, Pressable, useWindowDimensions, View } from 'react-native';
-import { Badge, Button, Card, Chip, Divider, IconButton, Modal, Portal, Text, TextInput, useTheme } from 'react-native-paper';
+import { useRouter } from "expo-router";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Animated,
+  Easing,
+  FlatList,
+  Image,
+  Pressable,
+  useWindowDimensions,
+  View,
+} from "react-native";
+import {
+  Badge,
+  Button,
+  Card,
+  Chip,
+  Divider,
+  IconButton,
+  Modal,
+  Portal,
+  Text,
+  TextInput,
+  useTheme,
+} from "react-native-paper";
 
-import { useLocationStore } from '@/store/location';
-import { useNotificationStore } from '@/store/notifications';
+import { resolveDemoFleetMode } from "@/lib/location/demoFleet";
+import { useLocationStore } from "@/store/location";
+import { useNotificationStore } from "@/store/notifications";
 
-const BUS_ICON = require('../../../assets/images/sbus.png');
+const BUS_ICON = require("../../../assets/images/sbus.png");
 
-type VehicleIndicatorMode = 'red-pulse' | 'red' | 'blue' | 'green-pulse' | 'green' | 'inactive';
+type VehicleIndicatorMode =
+  | "red-pulse"
+  | "red"
+  | "blue"
+  | "green-pulse"
+  | "green"
+  | "inactive";
 
-const HeadlightDot = memo(function HeadlightDot(props: { mode: VehicleIndicatorMode; size: number; color: string }) {
-  const pulse = props.mode === 'red-pulse' || props.mode === 'green-pulse';
+const HeadlightDot = memo(function HeadlightDot(props: {
+  mode: VehicleIndicatorMode;
+  size: number;
+  color: string;
+}) {
+  const pulse = props.mode === "red-pulse" || props.mode === "green-pulse";
   const anim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -29,7 +60,7 @@ const HeadlightDot = memo(function HeadlightDot(props: { mode: VehicleIndicatorM
           easing: Easing.inOut(Easing.sin),
           useNativeDriver: true,
         }),
-      ])
+      ]),
     );
     loop.start();
     return () => loop.stop();
@@ -37,14 +68,24 @@ const HeadlightDot = memo(function HeadlightDot(props: { mode: VehicleIndicatorM
 
   // Keep the core dot fully saturated (no opacity). Only the glow pulses.
   const glowSize = Math.round(props.size * 2.8);
-  const glowScale = anim.interpolate({ inputRange: [0, 1], outputRange: [1.05, 1.35] });
+  const glowScale = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1.05, 1.35],
+  });
   const glowOpacity = pulse ? 0.32 : 0;
 
   return (
-    <View style={{ width: glowSize, height: glowSize, alignItems: 'center', justifyContent: 'center' }}>
+    <View
+      style={{
+        width: glowSize,
+        height: glowSize,
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
       <Animated.View
         style={{
-          position: 'absolute',
+          position: "absolute",
           width: glowSize,
           height: glowSize,
           borderRadius: glowSize / 2,
@@ -82,11 +123,11 @@ const VehicleCard = memo(function VehicleCard(props: {
 }) {
   const dotSize = 10;
   const dotColor =
-    props.mode === 'green' || props.mode === 'green-pulse'
+    props.mode === "green" || props.mode === "green-pulse"
       ? props.colors.green
-      : props.mode === 'blue'
+      : props.mode === "blue"
         ? props.colors.blue
-        : props.mode === 'red' || props.mode === 'red-pulse'
+        : props.mode === "red" || props.mode === "red-pulse"
           ? props.colors.red
           : props.colors.inactive;
 
@@ -99,38 +140,57 @@ const VehicleCard = memo(function VehicleCard(props: {
     >
       <View
         style={{
-          height: 92,
+          height: 95,
           borderRadius: 16,
-          backgroundColor: 'transparent',
-          alignItems: 'center',
-          justifyContent: 'center',
-          position: 'relative',
-          borderWidth: props.selected ? 2 : 0,
-          borderColor: props.selected ? props.colors.blue : 'transparent',
+          backgroundColor: "transparent",
+          alignItems: "center",
+          justifyContent: "center",
+          position: "relative",
+          borderWidth: 2,
+          borderColor: props.selected ? props.colors.blue : "transparent",
         }}
       >
-        <Image source={props.busIcon} style={{ width: 75, height: 75, resizeMode: 'contain' }} />
+        <Image
+          source={props.busIcon}
+          style={{ width: 70, height: 70, resizeMode: "contain" }}
+        />
 
         <View
           style={{
-            position: 'absolute',
+            position: "absolute",
             top: 8,
             left: 0,
             right: 0,
-            alignItems: 'center',
+            alignItems: "center",
             zIndex: 2,
             elevation: 2,
           }}
         >
-          <Text variant="labelSmall" style={{ color: 'black' }}>
+          <Text variant="labelSmall" style={{ color: "black" }}>
             {props.badgeNumber}
           </Text>
         </View>
 
-        <View style={{ position: 'absolute', top: 51, left: 14, zIndex: 2, elevation: 2 }}>
+        <View
+          style={{
+            position: "absolute",
+            top: 51,
+            left: 14,
+            zIndex: 2,
+            elevation: 2,
+          }}
+        >
           <HeadlightDot mode={props.mode} size={dotSize} color={dotColor} />
         </View>
-        <View style={{ position: 'absolute', top: 51, right: 14, zIndex: 2, elevation: 2 }}>
+        <View
+          style={{
+            position: "absolute",
+            top: 51,
+            right: 14,
+            zIndex: 2,
+            elevation: 2,
+          }}
+        >
           <HeadlightDot mode={props.mode} size={dotSize} color={dotColor} />
         </View>
       </View>
@@ -150,25 +210,31 @@ export default function AdminFleetScreen() {
     const map = new Map<string, number>();
     for (const msg of inbox) {
       if (!msg.vehicleId) continue;
-      if ((msg.severity ?? 'green') !== 'green') continue;
+      if ((msg.severity ?? "green") !== "green") continue;
       map.set(msg.vehicleId, (map.get(msg.vehicleId) ?? 0) + 1);
     }
     return map;
   }, [inbox]);
-  const demoFleet = useMemo(() => {
-    const flag = process.env.EXPO_PUBLIC_DEMO_FLEET;
-    if (flag === 'true') return true;
-    if (flag === 'false') return false;
-    if (typeof demoFleetOverride === 'boolean') return demoFleetOverride;
-    return !__DEV__;
-  }, [demoFleetOverride]);
+  const demoFleetMode = useMemo(
+    () =>
+      resolveDemoFleetMode({
+        envFlag: process.env.EXPO_PUBLIC_DEMO_FLEET,
+        override: demoFleetOverride,
+      }),
+    [demoFleetOverride],
+  );
+  const demoFleet = demoFleetMode.enabled;
 
   const { width } = useWindowDimensions();
-  const [selectedVehicleId, setSelectedVehicleId] = useState<string | undefined>(undefined);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<
+    string | undefined
+  >(undefined);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
-  const [fleetFilter, setFleetFilter] = useState<'all' | 'ok' | 'delay' | 'out'>('all');
+  const [fleetFilter, setFleetFilter] = useState<
+    "all" | "ok" | "delay" | "out"
+  >("all");
   const chatAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -191,21 +257,27 @@ export default function AdminFleetScreen() {
       .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
   }, [inbox, selectedVehicleId]);
 
-  const latestMessageForSelected = useMemo(() => messagesForSelected[0], [messagesForSelected]);
+  const latestMessageForSelected = useMemo(
+    () => messagesForSelected[0],
+    [messagesForSelected],
+  );
 
-  const [replyText, setReplyText] = useState('');
+  const [replyText, setReplyText] = useState("");
 
   const cardWidth = 78;
   const gap = 8;
   const horizontalPadding = 12;
   const availableWidth = Math.max(1, width - horizontalPadding * 2);
-  const numColumns = Math.max(2, Math.floor((availableWidth + gap) / (cardWidth + gap)));
+  const numColumns = Math.max(
+    2,
+    Math.floor((availableWidth + gap) / (cardWidth + gap)),
+  );
 
   const redAlertsByVehicleId = useMemo(() => {
     const map = new Map<string, number>();
     for (const msg of inbox) {
       if (!msg.vehicleId) continue;
-      if ((msg.severity ?? 'green') !== 'red') continue;
+      if ((msg.severity ?? "green") !== "red") continue;
       map.set(msg.vehicleId, (map.get(msg.vehicleId) ?? 0) + 1);
     }
     return map;
@@ -218,7 +290,8 @@ export default function AdminFleetScreen() {
     const timeouts = new Set<ReturnType<typeof setTimeout>>();
 
     const interval = setInterval(() => {
-      const { fleet: liveFleet, setFleetVehicleOperational } = useLocationStore.getState();
+      const { fleet: liveFleet, setFleetVehicleOperational } =
+        useLocationStore.getState();
       const { receiveAlert, removeAlertById } = useNotificationStore.getState();
 
       if (liveFleet.length === 0) return;
@@ -235,25 +308,37 @@ export default function AdminFleetScreen() {
 
       if (phase === 0) {
         // OK (green)
-        setFleetVehicleOperational(vehicle.id, { status: 'On Route', delayMinutes: 0 });
+        setFleetVehicleOperational(vehicle.id, {
+          status: "On Route",
+          delayMinutes: 0,
+        });
       } else if (phase === 1) {
         // Delay (blue)
-        setFleetVehicleOperational(vehicle.id, { status: 'On Route', delayMinutes: 6 });
+        setFleetVehicleOperational(vehicle.id, {
+          status: "On Route",
+          delayMinutes: 6,
+        });
       } else if (phase === 2) {
         // Out of service (red)
-        setFleetVehicleOperational(vehicle.id, { status: 'In Depot', delayMinutes: 0 });
+        setFleetVehicleOperational(vehicle.id, {
+          status: "In Depot",
+          delayMinutes: 0,
+        });
       } else if (phase === 3) {
         // Message waiting (pulsing red)
-        setFleetVehicleOperational(vehicle.id, { status: 'On Route', delayMinutes: 0 });
+        setFleetVehicleOperational(vehicle.id, {
+          status: "On Route",
+          delayMinutes: 0,
+        });
         receiveAlert({
           id: demoAlertId,
-          title: 'Demo: Message Waiting',
-          body: 'New message waiting for this bus.',
-          recipients: 'school',
-          severity: 'red',
+          title: "Demo: Message Waiting",
+          body: "New message waiting for this bus.",
+          recipients: "school",
+          severity: "red",
           vehicleId: vehicle.id,
           createdAt: Date.now(),
-          createdByRole: 'driver',
+          createdByRole: "driver",
         });
 
         const t = setTimeout(() => {
@@ -262,16 +347,19 @@ export default function AdminFleetScreen() {
         timeouts.add(t);
       } else if (phase === 4) {
         // OK + pulse green (shining)
-        setFleetVehicleOperational(vehicle.id, { status: 'On Route', delayMinutes: 0 });
+        setFleetVehicleOperational(vehicle.id, {
+          status: "On Route",
+          delayMinutes: 0,
+        });
         receiveAlert({
           id: demoGreenId,
-          title: 'Demo: All Good',
-          body: 'Status confirmed OK.',
-          recipients: 'school',
-          severity: 'green',
+          title: "Demo: All Good",
+          body: "Status confirmed OK.",
+          recipients: "school",
+          severity: "green",
           vehicleId: vehicle.id,
           createdAt: Date.now(),
-          createdByRole: 'driver',
+          createdByRole: "driver",
         });
 
         const t = setTimeout(() => {
@@ -280,7 +368,10 @@ export default function AdminFleetScreen() {
         timeouts.add(t);
       } else {
         // Back to OK
-        setFleetVehicleOperational(vehicle.id, { status: 'On Route', delayMinutes: 0 });
+        setFleetVehicleOperational(vehicle.id, {
+          status: "On Route",
+          delayMinutes: 0,
+        });
       }
 
       tick += 1;
@@ -301,36 +392,47 @@ export default function AdminFleetScreen() {
     return (greenAlertsByVehicleId.get(vehicleId) ?? 0) > 0;
   }
 
-  function operationalState(v: (typeof fleet)[number]): 'ok' | 'delay' | 'out' {
-    if (v.status === 'In Depot') return 'out';
-    if (v.delayMinutes > 0) return 'delay';
-    return 'ok';
+  function operationalState(v: (typeof fleet)[number]): "ok" | "delay" | "out" {
+    if (v.status === "In Depot") return "out";
+    if (v.delayMinutes > 0) return "delay";
+    return "ok";
   }
 
   const indicatorColors = useMemo(
     () => ({
       // Status lights should be vivid and consistent across themes.
-      green: '#00ff37',
-      blue: '#007bff',
-      red: '#ff0000',
-      inactive: 'black',
+      green: "#00ff37",
+      blue: "#007bff",
+      red: "#ff0000",
+      inactive: "black",
     }),
-    []
+    [],
   );
 
   const gridData = useMemo(() => {
-    function badgeNumberToSortable(value: unknown): { hasNumber: boolean; number: number; alpha: string } {
-      if (typeof value === 'number' && Number.isFinite(value)) {
-        return { hasNumber: true, number: value, alpha: '' };
+    function badgeNumberToSortable(value: unknown): {
+      hasNumber: boolean;
+      number: number;
+      alpha: string;
+    } {
+      if (typeof value === "number" && Number.isFinite(value)) {
+        return { hasNumber: true, number: value, alpha: "" };
       }
-      const text = String(value ?? '').trim();
+      const text = String(value ?? "").trim();
       const match = text.match(/(\d+)/);
-      if (!match) return { hasNumber: false, number: Number.POSITIVE_INFINITY, alpha: text.toLowerCase() };
+      if (!match)
+        return {
+          hasNumber: false,
+          number: Number.POSITIVE_INFINITY,
+          alpha: text.toLowerCase(),
+        };
       const numberPart = Number(match[1]);
       return {
         hasNumber: Number.isFinite(numberPart),
-        number: Number.isFinite(numberPart) ? numberPart : Number.POSITIVE_INFINITY,
-        alpha: text.replace(/\d+/g, '').trim().toLowerCase(),
+        number: Number.isFinite(numberPart)
+          ? numberPart
+          : Number.POSITIVE_INFINITY,
+        alpha: text.replace(/\d+/g, "").trim().toLowerCase(),
       };
     }
 
@@ -340,18 +442,18 @@ export default function AdminFleetScreen() {
       if (hasRedPulse) return 0;
 
       const state = operationalState(v);
-      if (state === 'delay') return 1;
+      if (state === "delay") return 1;
 
       const recentlyMarkedOOS =
-        v.status === 'In Depot' &&
-        typeof (v as any).statusUpdatedAt === 'number' &&
+        v.status === "In Depot" &&
+        typeof (v as any).statusUpdatedAt === "number" &&
         Date.now() - v.statusUpdatedAt <= 24 * 60 * 60 * 1000;
       if (recentlyMarkedOOS) return 2;
 
-      const hasGreenPulse = state === 'ok' && vehicleHasGreenPulse(v.id);
+      const hasGreenPulse = state === "ok" && vehicleHasGreenPulse(v.id);
       if (hasGreenPulse) return 3;
 
-      if (state === 'ok') return 4;
+      if (state === "ok") return 4;
 
       // Any remaining states (e.g. out-of-service) fall after the prioritized ones.
       return 5;
@@ -366,40 +468,52 @@ export default function AdminFleetScreen() {
         const badgeA = badgeNumberToSortable((a as any).badgeNumber);
         const badgeB = badgeNumberToSortable((b as any).badgeNumber);
 
-        if (badgeA.hasNumber && badgeB.hasNumber && badgeA.number !== badgeB.number) return badgeA.number - badgeB.number;
-        if (badgeA.hasNumber !== badgeB.hasNumber) return badgeA.hasNumber ? -1 : 1;
+        if (
+          badgeA.hasNumber &&
+          badgeB.hasNumber &&
+          badgeA.number !== badgeB.number
+        )
+          return badgeA.number - badgeB.number;
+        if (badgeA.hasNumber !== badgeB.hasNumber)
+          return badgeA.hasNumber ? -1 : 1;
 
-        if (badgeA.alpha !== badgeB.alpha) return badgeA.alpha.localeCompare(badgeB.alpha);
-        return String(a.id).toLowerCase().localeCompare(String(b.id).toLowerCase());
+        if (badgeA.alpha !== badgeB.alpha)
+          return badgeA.alpha.localeCompare(badgeB.alpha);
+        return String(a.id)
+          .toLowerCase()
+          .localeCompare(String(b.id).toLowerCase());
       })
       .map((v) => {
         const state = operationalState(v);
         const hasRedPulse = vehicleHasWaitingAlert(v.id);
-        const hasGreenPulse = !hasRedPulse && state === 'ok' && vehicleHasGreenPulse(v.id);
+        const hasGreenPulse =
+          !hasRedPulse && state === "ok" && vehicleHasGreenPulse(v.id);
         const mode: VehicleIndicatorMode = hasRedPulse
-          ? 'red-pulse'
-          : state === 'out'
-            ? 'red'
-            : state === 'delay'
-              ? 'blue'
+          ? "red-pulse"
+          : state === "out"
+            ? "red"
+            : state === "delay"
+              ? "blue"
               : hasGreenPulse
-                ? 'green-pulse'
-                : state === 'ok'
-                  ? 'green'
-                  : 'inactive';
+                ? "green-pulse"
+                : state === "ok"
+                  ? "green"
+                  : "inactive";
 
         return { id: v.id, badgeNumber: (v as any).badgeNumber, state, mode };
       });
   }, [fleet, greenAlertsByVehicleId, redAlertsByVehicleId]);
 
   const filteredGridData = useMemo(() => {
-    if (fleetFilter === 'all') return gridData;
+    if (fleetFilter === "all") return gridData;
     return gridData.filter((v) => v.state === fleetFilter);
   }, [fleetFilter, gridData]);
 
   useEffect(() => {
     if (!selectedVehicleId) return;
-    const stillVisible = filteredGridData.some((v) => v.id === selectedVehicleId);
+    const stillVisible = filteredGridData.some(
+      (v) => v.id === selectedVehicleId,
+    );
     if (stillVisible) return;
 
     setSelectedVehicleId(undefined);
@@ -408,19 +522,35 @@ export default function AdminFleetScreen() {
   }, [filteredGridData, selectedVehicleId]);
 
   const selectedVehicle = useMemo(
-    () => (selectedVehicleId ? fleet.find((v) => v.id === selectedVehicleId) : undefined),
-    [fleet, selectedVehicleId]
+    () =>
+      selectedVehicleId
+        ? fleet.find((v) => v.id === selectedVehicleId)
+        : undefined,
+    [fleet, selectedVehicleId],
   );
 
   return (
     <View style={{ flex: 1, paddingTop: 6 }}>
-      <View style={{ paddingHorizontal: 16, paddingBottom: 6, alignItems: 'stretch', gap: 6 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Text variant="titleSmall" style={{ textAlign: 'left' }}>
+      <View
+        style={{
+          paddingHorizontal: 16,
+          paddingBottom: 6,
+          alignItems: "stretch",
+          gap: 6,
+        }}
+      >
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <Text variant="titleSmall" style={{ textAlign: "left" }}>
             Fleet Overview
           </Text>
 
-          <View style={{ position: 'relative' }}>
+          <View style={{ position: "relative" }}>
             <IconButton
               icon="filter-variant"
               mode="contained"
@@ -430,27 +560,68 @@ export default function AdminFleetScreen() {
               style={{ margin: 0, width: 34, height: 34 }}
               onPress={() => setFilterOpen(true)}
             />
-            {fleetFilter !== 'all' ? (
-              <Badge size={10} style={{ position: 'absolute', right: 2, top: 2, backgroundColor: theme.colors.primary }} />
+            {fleetFilter !== "all" ? (
+              <Badge
+                size={10}
+                style={{
+                  position: "absolute",
+                  right: 2,
+                  top: 2,
+                  backgroundColor: theme.colors.primary,
+                }}
+              />
             ) : null}
           </View>
         </View>
-        <Divider style={{ alignSelf: 'stretch' }} />
+        {demoFleet ? (
+          <View style={{ gap: 4 }}>
+            <Chip compact icon="presentation-play">
+              {demoFleetMode.isLocked
+                ? "Fleet demo locked by environment"
+                : "Fleet demo running"}
+            </Chip>
+            <Text
+              variant="bodySmall"
+              style={{ color: theme.colors.onSurfaceVariant }}
+            >
+              Scripted cycle: on-route, delayed, depot, and message states.
+            </Text>
+          </View>
+        ) : null}
+        <Divider style={{ alignSelf: "stretch" }} />
       </View>
 
       <Portal>
         <Modal
           visible={filterOpen}
           onDismiss={() => setFilterOpen(false)}
-          contentContainerStyle={{ margin: 16, borderRadius: 12, overflow: 'hidden', backgroundColor: theme.colors.surface }}
+          contentContainerStyle={{
+            margin: 16,
+            borderRadius: 12,
+            overflow: "hidden",
+            backgroundColor: theme.colors.surface,
+          }}
         >
-          <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 12, gap: 10 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View
+            style={{
+              paddingHorizontal: 16,
+              paddingTop: 14,
+              paddingBottom: 12,
+              gap: 10,
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
               <Text variant="titleSmall">Filter fleet</Text>
               <Button
                 compact
                 onPress={() => {
-                  setFleetFilter('all');
+                  setFleetFilter("all");
                 }}
               >
                 Clear
@@ -460,20 +631,35 @@ export default function AdminFleetScreen() {
             <Divider />
 
             <View style={{ gap: 8 }}>
-              <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+              <Text
+                variant="labelSmall"
+                style={{ color: theme.colors.onSurfaceVariant }}
+              >
                 Status
               </Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                <Chip selected={fleetFilter === 'all'} onPress={() => setFleetFilter('all')}>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                <Chip
+                  selected={fleetFilter === "all"}
+                  onPress={() => setFleetFilter("all")}
+                >
                   All
                 </Chip>
-                <Chip selected={fleetFilter === 'ok'} onPress={() => setFleetFilter('ok')}>
+                <Chip
+                  selected={fleetFilter === "ok"}
+                  onPress={() => setFleetFilter("ok")}
+                >
                   OK
                 </Chip>
-                <Chip selected={fleetFilter === 'delay'} onPress={() => setFleetFilter('delay')}>
+                <Chip
+                  selected={fleetFilter === "delay"}
+                  onPress={() => setFleetFilter("delay")}
+                >
                   Delayed
                 </Chip>
-                <Chip selected={fleetFilter === 'out'} onPress={() => setFleetFilter('out')}>
+                <Chip
+                  selected={fleetFilter === "out"}
+                  onPress={() => setFleetFilter("out")}
+                >
                   Out
                 </Chip>
               </View>
@@ -519,49 +705,90 @@ export default function AdminFleetScreen() {
       {detailsOpen && selectedVehicleId && selectedVehicle ? (
         <Animated.View
           style={{
-            position: 'absolute',
+            position: "absolute",
             left: 16,
             right: 16,
             bottom: 16,
             transform: [
               {
-                translateY: chatAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -140] }),
+                translateY: chatAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, -140],
+                }),
               },
             ],
           }}
         >
-          <Card style={{ overflow: 'visible' }}>
+          <Card style={{ overflow: "visible" }}>
             <Card.Content>
-              <View style={{ position: 'relative', paddingLeft: 12, paddingRight: 56, paddingBottom: 4, minHeight: 14 }}>
+              <View
+                style={{
+                  position: "relative",
+                  paddingLeft: 12,
+                  paddingRight: 56,
+                  paddingBottom: 4,
+                  minHeight: 14,
+                }}
+              >
                 {/* Floating bus icon (top-left) */}
-                <View style={{ position: 'absolute', left: -32, top: -32, width: 36, height: 36, zIndex: 3, elevation: 3 }}>
-                  <Image source={BUS_ICON} style={{ width: 36, height: 36, resizeMode: 'contain' }} />
+                <View
+                  style={{
+                    position: "absolute",
+                    left: -24,
+                    top: -24,
+                    width: 36,
+                    height: 36,
+                    zIndex: 3,
+                    elevation: 3,
+                  }}
+                >
+                  <Image
+                    source={BUS_ICON}
+                    style={{ width: 36, height: 36, resizeMode: "contain" }}
+                  />
                   {/* Bus number in the grill */}
-                  <View style={{ position: 'absolute', left: 0, right: 0, top: 16, alignItems: 'center' }}>
-                    <Text variant="labelSmall" style={{ color: 'black' }}>
+                  <View
+                    style={{
+                      position: "absolute",
+                      left: 0,
+                      right: 0,
+                      top: 16,
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text variant="labelSmall" style={{ color: "black" }}>
                       {selectedVehicle.badgeNumber}
                     </Text>
                   </View>
                 </View>
 
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 12,
+                  }}
+                >
                   <Text variant="titleSmall">Details</Text>
 
                   {/* Message push button w/ red indicator */}
-                  <View style={{ position: 'relative' }}>
+                  <View style={{ position: "relative" }}>
                     <IconButton
                       icon="message-text"
                       mode="contained"
                       size={18}
                       style={{ margin: 0 }}
                       containerColor={theme.colors.surfaceVariant}
-                      accessibilityLabel={chatOpen ? 'Close messages' : 'Open messages'}
+                      accessibilityLabel={
+                        chatOpen ? "Close messages" : "Open messages"
+                      }
                       onPress={() => setChatOpen((v) => !v)}
                     />
-                    {selectedVehicleId && vehicleHasWaitingAlert(selectedVehicleId) ? (
+                    {selectedVehicleId &&
+                    vehicleHasWaitingAlert(selectedVehicleId) ? (
                       <View
                         style={{
-                          position: 'absolute',
+                          position: "absolute",
                           top: 2,
                           right: 2,
                           width: 8,
@@ -583,7 +810,7 @@ export default function AdminFleetScreen() {
                     onPress={() => {
                       setDetailsOpen(false);
                       router.push({
-                        pathname: '/(admin)/(tabs)/routes',
+                        pathname: "/(admin)/(tabs)/routes",
                         params: { vehicleId: selectedVehicle.id },
                       });
                     }}
@@ -591,7 +818,15 @@ export default function AdminFleetScreen() {
                 </View>
 
                 {/* Floating close as a push button (top-right) */}
-                <View style={{ position: 'absolute', right: -32, top: -32, zIndex: 3, elevation: 3 }}>
+                <View
+                  style={{
+                    position: "absolute",
+                    right: -32,
+                    top: -32,
+                    zIndex: 3,
+                    elevation: 3,
+                  }}
+                >
                   <IconButton
                     icon="close"
                     mode="contained"
@@ -603,10 +838,13 @@ export default function AdminFleetScreen() {
               </View>
 
               {/* 1x3 card grid: Driver / Status / Delay */}
-              <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
+              <View style={{ flexDirection: "row", gap: 8, marginTop: 6 }}>
                 <Card mode="outlined" style={{ flex: 1 }}>
                   <Card.Content style={{ paddingVertical: 8 }}>
-                    <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                    <Text
+                      variant="labelSmall"
+                      style={{ color: theme.colors.onSurfaceVariant }}
+                    >
                       Driver
                     </Text>
                     <Text numberOfLines={1}>{selectedVehicle.driverName}</Text>
@@ -615,7 +853,10 @@ export default function AdminFleetScreen() {
 
                 <Card mode="outlined" style={{ flex: 1 }}>
                   <Card.Content style={{ paddingVertical: 8 }}>
-                    <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                    <Text
+                      variant="labelSmall"
+                      style={{ color: theme.colors.onSurfaceVariant }}
+                    >
                       Status
                     </Text>
                     <Text numberOfLines={1}>{selectedVehicle.status}</Text>
@@ -624,11 +865,16 @@ export default function AdminFleetScreen() {
 
                 <Card mode="outlined" style={{ flex: 1 }}>
                   <Card.Content style={{ paddingVertical: 8 }}>
-                    <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                    <Text
+                      variant="labelSmall"
+                      style={{ color: theme.colors.onSurfaceVariant }}
+                    >
                       Delay
                     </Text>
                     <Text numberOfLines={1}>
-                      {selectedVehicle.delayMinutes > 0 ? `${selectedVehicle.delayMinutes} min` : 'On time'}
+                      {selectedVehicle.delayMinutes > 0
+                        ? `${selectedVehicle.delayMinutes} min`
+                        : "On time"}
                     </Text>
                   </Card.Content>
                 </Card>
@@ -639,18 +885,28 @@ export default function AdminFleetScreen() {
                 <View style={{ marginTop: 10 }}>
                   <Card mode="outlined">
                     <Card.Content style={{ paddingVertical: 10 }}>
-                      <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                      <Text
+                        variant="labelSmall"
+                        style={{ color: theme.colors.onSurfaceVariant }}
+                      >
                         Latest message
                       </Text>
                       <Text variant="bodyMedium" style={{ marginTop: 4 }}>
                         {latestMessageForSelected
                           ? `${latestMessageForSelected.title} — ${latestMessageForSelected.body}`
-                          : 'No messages for this bus yet.'}
+                          : "No messages for this bus yet."}
                       </Text>
                     </Card.Content>
                   </Card>
 
-                  <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginTop: 10 }}>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "flex-end",
+                      gap: 8,
+                      marginTop: 10,
+                    }}
+                  >
                     <View style={{ flex: 1 }}>
                       <TextInput
                         mode="outlined"
@@ -669,12 +925,14 @@ export default function AdminFleetScreen() {
                         const body = replyText.trim();
                         if (!body) return;
                         await sendAdminBroadcast({
-                          title: selectedVehicleId ? `Reply to ${selectedVehicleId}` : 'Reply',
+                          title: selectedVehicleId
+                            ? `Reply to ${selectedVehicleId}`
+                            : "Reply",
                           body,
-                          recipients: 'school',
+                          recipients: "school",
                           vehicleId: selectedVehicleId,
                         });
-                        setReplyText('');
+                        setReplyText("");
                       }}
                     />
                   </View>

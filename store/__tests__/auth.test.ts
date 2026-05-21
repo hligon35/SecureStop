@@ -7,6 +7,7 @@ const mockProfileClear = jest.fn().mockResolvedValue(undefined);
 const mockHydrateIdentityProfile = jest.fn();
 const mockPersistIdentityProfile = jest.fn().mockResolvedValue(undefined);
 const mockExtractOidcIdentityClaims = jest.fn();
+const mockDeleteFirebaseAccount = jest.fn().mockResolvedValue(true);
 const mockSignOutFirebase = jest.fn().mockResolvedValue(undefined);
 const mockConfigureApiAuthProviders = jest.fn();
 const mockConfig = {
@@ -31,6 +32,7 @@ jest.mock("@/lib/api/client", () => ({
 }));
 
 jest.mock("@/lib/auth/firebase", () => ({
+  deleteFirebaseAccount: mockDeleteFirebaseAccount,
   isFirebaseConfigured: jest.fn(() => false),
   signInWithFirebasePassword: jest.fn(),
   signOutFirebase: mockSignOutFirebase,
@@ -96,6 +98,7 @@ describe("useAuthStore", () => {
     });
     mockPersistIdentityProfile.mockResolvedValue(undefined);
     mockExtractOidcIdentityClaims.mockReturnValue(undefined);
+    mockDeleteFirebaseAccount.mockResolvedValue(true);
     mockSignOutFirebase.mockResolvedValue(undefined);
   });
 
@@ -338,5 +341,42 @@ describe("useAuthStore", () => {
       tenantId: "district-7",
       userId: "oidc-user",
     });
+  });
+
+  it("deletes a local demo account when no remote provider owns it", async () => {
+    useAuthStore.setState({
+      accessToken: undefined,
+      email: "demo@example.com",
+      isAuthenticated: true,
+    });
+
+    await expect(useAuthStore.getState().deleteAccount()).resolves.toEqual({
+      deletedRemotely: false,
+    });
+
+    expect(mockDeleteFirebaseAccount).not.toHaveBeenCalled();
+    expect(mockClearSession).toHaveBeenCalledTimes(1);
+    expect(mockProfileClear).toHaveBeenCalledTimes(1);
+    expect(mockTenantStore.clear).toHaveBeenCalledTimes(1);
+    expect(useAuthStore.getState()).toMatchObject({
+      accessToken: undefined,
+      isAuthenticated: false,
+      schoolId: "",
+      tenantId: "",
+    });
+  });
+
+  it("fails deleteAccount for unsupported non-Firebase signed-in providers", async () => {
+    useAuthStore.setState({
+      accessToken: "api-access-token",
+      email: "real-user@example.com",
+      isAuthenticated: true,
+    });
+
+    await expect(useAuthStore.getState().deleteAccount()).rejects.toThrow(
+      "Account deletion is not connected for this sign-in provider yet. Contact an administrator or use the backend account management flow.",
+    );
+
+    expect(mockDeleteFirebaseAccount).not.toHaveBeenCalled();
   });
 });
