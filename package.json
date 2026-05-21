@@ -10,6 +10,7 @@
     "web": "expo start --web",
     "test": "jest --runInBand",
     "typecheck": "tsc --noEmit",
+    "web:export:check": "expo export --platform web --output-dir .expo/web-export-check",
     "cloudflare:dev": "npx wrangler dev --config cloudflare/wrangler.toml",
     "cloudflare:deploy": "npx wrangler deploy --config cloudflare/wrangler.toml",
     "cloudflare:test:relay": "node cloudflare/testRelayFixture.mjs",

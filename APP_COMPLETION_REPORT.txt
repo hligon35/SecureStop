@@ -17,6 +17,9 @@ Actions Taken:
 - Confirmed auth already fails fast when neither Firebase nor a real API base URL is configured.
 - Added a repeatable typecheck command in package.json to catch functional regressions earlier.
 - Added focused entry-route coverage in app/__tests__/index.test.tsx for unauthenticated users plus parent, driver, and admin launch redirects.
+- Added auth-store flow coverage for API password sign-in persistence, OIDC token hydration, and misconfiguration guardrails in store/__tests__/auth.test.ts.
+- Added tenant membership store coverage for hydrate, replaceContext, auth sync, and clear behavior in store/__tests__/tenantMembership.test.ts.
+- Added a tenant-selection screen smoke test in app/__tests__/select-tenant.test.tsx covering admin redirect and custom tenant-code continuation.
 Remaining Gaps:
 - End-to-end functional flows are not covered by automated tests.
 - Driver, parent, and admin critical-path scenarios still need manual device validation.
@@ -58,8 +61,12 @@ Actions Taken:
 - Added a Jest Expo test harness in jest.config.js with alias support for the TypeScript app layout.
 - Added unit tests for session parsing/expiry handling in lib/auth/__tests__/sessionStorage.test.ts.
 - Added store-level auth tests in store/__tests__/auth.test.ts covering hydrate() and signOut() against mocked persistence and membership boundaries.
+- Extended store/__tests__/auth.test.ts to cover API password login session persistence, configuration failure handling, and OIDC claim-driven hydration.
 - Added unit tests for role root/profile route mapping in constants/__tests__/routes.test.ts.
 - Added persona entry-route tests in app/__tests__/index.test.tsx covering auth gating, admin web/native branching, and tenant-context redirects.
+- Added store/__tests__/tenantMembership.test.ts for persisted tenant context hydration, normalization, deduplication, and clear semantics.
+- Added lib/tenancy/__tests__/context.test.ts for tenant-id normalization and tenant-context helper behavior.
+- Added app/__tests__/select-tenant.test.tsx for admin redirect and custom tenant selection smoke coverage.
 - Updated the legacy StyledText snapshot test so it runs cleanly under the current React test renderer.
 - Executed npm test successfully after the second-pass changes.
 - Executed npm run typecheck successfully after the audit changes.
@@ -67,7 +74,7 @@ Actions Taken:
 Remaining Gaps:
 - No E2E, device, accessibility, or API integration tests are present.
 Notes:
-- Typecheck and Jest now cover core auth/session and entry-routing logic, but integration and device coverage remain the largest QA gaps.
+- Typecheck and Jest now cover core auth/session, password login, OIDC hydration, tenant-context persistence, tenant selection, and entry-routing logic, but integration and device coverage remain the largest QA gaps.
 ----------------------------------------------
 [6. Architecture & Code Quality]
 Status: Improved
@@ -88,11 +95,12 @@ Actions Taken:
 - Added a GitHub Actions workflow at .github/workflows/ci.yml to run npm ci, npm run typecheck, and npm test on pushes and pull requests.
 - Added a durable typecheck script to package.json so local and CI validation use the same command.
 - Added a durable npm test script to package.json so local and CI validation use the same Jest entry point.
+- Added a web:export:check script to package.json and wired it into CI so static web export is validated alongside tests and typecheck.
 Remaining Gaps:
 - CI does not yet run Expo export, linting, device checks, or deployment validation.
 - No release checklist automation exists for EAS build, submit, or OTA promotion.
 Notes:
-- Existing EAS configuration is usable; this pass closes the missing continuous validation gap more fully by covering both types and unit tests.
+- Existing EAS configuration is usable; this pass closes the missing continuous validation gap more fully by covering types, unit tests, and web export.
 ----------------------------------------------
 [8. Compliance & App Store Requirements]
 Status: Improved
@@ -127,6 +135,9 @@ Actions Taken:
 - Added CI-backed unit test execution and targeted coverage for session hydration and role-route mapping.
 - Fixed persisted-session hydration so expired auth state is less likely to survive app restarts.
 - Added auth-store and app-entry routing tests to raise confidence in role-based launch behavior before device-level validation.
+- Added explicit tests for API-backed login persistence and OIDC session hydration so the main non-demo auth branches are exercised before release.
+- Added explicit coverage for tenant membership persistence and normalization so post-login tenant gating is exercised before device-level validation.
+- Added tenant-selection smoke coverage and CI web export validation so one more user-facing flow and one more release artifact are exercised before launch.
 - Captured the current audit state and remaining gaps in this report for launch planning.
 Remaining Gaps:
 - Launch readiness still depends on manual validation of core role-based flows, backend readiness, store assets, and support processes.

@@ -1,12 +1,18 @@
 const mockClearSession = jest.fn().mockResolvedValue(undefined);
 const mockLoadSession = jest.fn();
 const mockSaveSession = jest.fn().mockResolvedValue(undefined);
+const mockApiPost = jest.fn();
 const mockProfileLoad = jest.fn();
 const mockProfileClear = jest.fn().mockResolvedValue(undefined);
 const mockHydrateIdentityProfile = jest.fn();
 const mockPersistIdentityProfile = jest.fn().mockResolvedValue(undefined);
+const mockExtractOidcIdentityClaims = jest.fn();
 const mockSignOutFirebase = jest.fn().mockResolvedValue(undefined);
 const mockConfigureApiAuthProviders = jest.fn();
+const mockConfig = {
+  apiBaseUrl: "https://example.test",
+  features: { enableDemoLogin: false },
+};
 const mockTenantStore = {
   clear: jest.fn(),
   replaceContext: jest.fn(),
@@ -20,7 +26,7 @@ jest.mock("@/constants/devAccount", () => ({
 }));
 
 jest.mock("@/lib/api/client", () => ({
-  api: { post: jest.fn() },
+  api: { post: mockApiPost },
   configureApiAuthProviders: mockConfigureApiAuthProviders,
 }));
 
@@ -39,7 +45,7 @@ jest.mock("@/lib/auth/localProfileRepository", () => ({
 }));
 
 jest.mock("@/lib/auth/oidc", () => ({
-  extractOidcIdentityClaims: jest.fn(),
+  extractOidcIdentityClaims: mockExtractOidcIdentityClaims,
 }));
 
 jest.mock("@/lib/auth/profileSync", () => ({
@@ -54,10 +60,7 @@ jest.mock("@/lib/auth/sessionStorage", () => ({
 }));
 
 jest.mock("@/lib/config", () => ({
-  getConfig: () => ({
-    apiBaseUrl: "https://example.test",
-    features: { enableDemoLogin: false },
-  }),
+  getConfig: () => mockConfig,
 }));
 
 jest.mock("@/lib/tenancy/context", () => ({
@@ -79,10 +82,20 @@ describe("useAuthStore", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     useAuthStore.setState(initialState);
+    mockConfig.apiBaseUrl = "https://example.test";
+    mockConfig.features.enableDemoLogin = false;
+    mockApiPost.mockReset();
     mockClearSession.mockResolvedValue(undefined);
+    mockLoadSession.mockResolvedValue(undefined);
     mockSaveSession.mockResolvedValue(undefined);
+    mockProfileLoad.mockResolvedValue(undefined);
     mockProfileClear.mockResolvedValue(undefined);
+    mockHydrateIdentityProfile.mockResolvedValue({
+      membershipContext: undefined,
+      profile: undefined,
+    });
     mockPersistIdentityProfile.mockResolvedValue(undefined);
+    mockExtractOidcIdentityClaims.mockReturnValue(undefined);
     mockSignOutFirebase.mockResolvedValue(undefined);
   });
 
@@ -162,6 +175,168 @@ describe("useAuthStore", () => {
       refreshToken: undefined,
       schoolId: "",
       tenantId: "",
+    });
+  });
+
+  it("persists API password sign-in state and membership", async () => {
+    const nowSpy = jest.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
+    mockApiPost.mockResolvedValue({
+      data: {
+        accessToken: "api-access-token",
+        expiresIn: 300,
+        homeAddress: "456 Oak Ave",
+        idToken: "api-id-token",
+        refreshToken: "api-refresh-token",
+        role: "driver",
+        tenantId: "tenant-42",
+        userId: "driver-42",
+      },
+    });
+
+    await useAuthStore.getState().signInWithPassword({
+      email: "driver@example.com",
+      password: "correct-horse",
+    });
+
+    expect(mockApiPost).toHaveBeenCalledWith("/auth/login", {
+      email: "driver@example.com",
+      password: "correct-horse",
+    });
+    expect(mockSaveSession).toHaveBeenCalledWith({
+      accessToken: "api-access-token",
+      expiresAt: 1_700_000_300_000,
+      idToken: "api-id-token",
+      refreshToken: "api-refresh-token",
+      userId: "driver-42",
+    });
+    expect(mockPersistIdentityProfile).toHaveBeenCalledWith({
+      email: "driver@example.com",
+      homeAddress: "456 Oak Ave",
+      role: "driver",
+      schoolId: "tenant-42",
+      tenantId: "tenant-42",
+      userId: "driver-42",
+    });
+    expect(mockTenantStore.syncFromAuthProfile).toHaveBeenCalledWith({
+      role: "driver",
+      tenantId: "tenant-42",
+    });
+    expect(useAuthStore.getState()).toMatchObject({
+      accessToken: "api-access-token",
+      email: "driver@example.com",
+      expiresAt: 1_700_000_300_000,
+      homeAddress: "456 Oak Ave",
+      idToken: "api-id-token",
+      isAuthenticated: true,
+      refreshToken: "api-refresh-token",
+      role: "driver",
+      schoolId: "tenant-42",
+      tenantId: "tenant-42",
+      userId: "driver-42",
+    });
+
+    nowSpy.mockRestore();
+  });
+
+  it("fails fast when neither Firebase nor a real API base URL is configured", async () => {
+    mockConfig.apiBaseUrl = "https://example.invalid";
+
+    await expect(
+      useAuthStore.getState().signInWithPassword({
+        email: "parent@example.com",
+        password: "password123",
+      }),
+    ).rejects.toThrow(
+      "Neither Firebase nor EXPO_PUBLIC_API_BASE_URL is configured. Add Firebase env vars or a backend URL to .env and reload the app.",
+    );
+
+    expect(mockApiPost).not.toHaveBeenCalled();
+    expect(mockSaveSession).not.toHaveBeenCalled();
+  });
+
+  it("hydrates OIDC sign-in using claims and synced profile data", async () => {
+    mockProfileLoad.mockResolvedValue({
+      email: "stored@example.com",
+      homeAddress: "Stored Home",
+      role: "parent",
+      schoolId: "stored-school",
+      tenantId: "stored-school",
+      userId: "stored-user",
+    });
+    mockExtractOidcIdentityClaims.mockReturnValue({
+      email: "admin@example.com",
+      homeAddress: "500 Fleet St",
+      role: "admin",
+      schoolId: "district-7",
+      userId: "oidc-user",
+    });
+    mockHydrateIdentityProfile.mockResolvedValue({
+      membershipContext: undefined,
+      profile: {
+        email: "admin@example.com",
+        homeAddress: "500 Fleet St",
+        role: "admin",
+        schoolId: "district-7",
+        tenantId: "district-7",
+        userId: "oidc-user",
+      },
+    });
+
+    await useAuthStore.getState().signInWithOidcToken({
+      accessToken: "oidc-access-token",
+      expiresAt: 1_700_000_060_000,
+      idToken: "oidc-id-token",
+      refreshToken: "oidc-refresh-token",
+    });
+
+    expect(mockSaveSession).toHaveBeenCalledWith({
+      accessToken: "oidc-access-token",
+      expiresAt: 1_700_000_060_000,
+      idToken: "oidc-id-token",
+      refreshToken: "oidc-refresh-token",
+      userId: "oidc-user",
+    });
+    expect(mockPersistIdentityProfile).toHaveBeenCalledWith({
+      email: "admin@example.com",
+      homeAddress: "500 Fleet St",
+      role: "admin",
+      schoolId: "district-7",
+      tenantId: "district-7",
+      userId: "oidc-user",
+    });
+    expect(mockHydrateIdentityProfile).toHaveBeenCalledWith({
+      session: {
+        accessToken: "oidc-access-token",
+        expiresAt: 1_700_000_060_000,
+        idToken: "oidc-id-token",
+        refreshToken: "oidc-refresh-token",
+        userId: "oidc-user",
+      },
+      storedProfile: {
+        email: "admin@example.com",
+        homeAddress: "500 Fleet St",
+        role: "admin",
+        schoolId: "district-7",
+        tenantId: "district-7",
+        userId: "oidc-user",
+      },
+    });
+    expect(mockTenantStore.syncFromAuthProfile).toHaveBeenCalledWith({
+      role: "admin",
+      tenantId: "district-7",
+    });
+    expect(useAuthStore.getState()).toMatchObject({
+      accessToken: "oidc-access-token",
+      email: "admin@example.com",
+      expiresAt: 1_700_000_060_000,
+      homeAddress: "500 Fleet St",
+      idToken: "oidc-id-token",
+      isAuthenticated: true,
+      refreshToken: "oidc-refresh-token",
+      role: "admin",
+      schoolId: "district-7",
+      tenantId: "district-7",
+      userId: "oidc-user",
     });
   });
 });
