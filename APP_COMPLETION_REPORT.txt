@@ -16,11 +16,12 @@ Actions Taken:
 - Audited auth bootstrap, notification registration, tenant selection, and location tracking paths.
 - Confirmed auth already fails fast when neither Firebase nor a real API base URL is configured.
 - Added a repeatable typecheck command in package.json to catch functional regressions earlier.
+- Added focused entry-route coverage in app/__tests__/index.test.tsx for unauthenticated users plus parent, driver, and admin launch redirects.
 Remaining Gaps:
 - End-to-end functional flows are not covered by automated tests.
 - Driver, parent, and admin critical-path scenarios still need manual device validation.
 Notes:
-- Core flows appear scaffolded, but completion confidence is limited by missing integration and device tests.
+- Core flows are better covered at the route-entry boundary, but completion confidence is still limited by missing integration and device tests.
 ----------------------------------------------
 [3. API & Backend Integration]
 Status: Improved
@@ -41,24 +42,32 @@ Actions Taken:
 - Removed the committed Sentry DSN from app/_layout.tsx and replaced it with EXPO_PUBLIC_SENTRY_DSN sourced through lib/config.ts.
 - Confirmed native session persistence already prefers expo-secure-store and falls back safely when unavailable.
 - Added .env.example so required public runtime configuration is explicit rather than inferred from source.
+- Hardened lib/auth/sessionStorage.ts so expired or malformed persisted sessions are rejected during hydration and cleared from storage.
+- Centralized role-specific profile destinations in constants/routes.ts and updated components/AppHeader.tsx to use the shared mapping instead of inline branching.
 Remaining Gaps:
 - Web session persistence still uses localStorage, which is a tradeoff that should be reviewed against the project threat model.
 - Secrets management for non-public values such as worker service keys still requires deployment-side verification.
 Notes:
-- The changes in this pass reduce accidental secret exposure without changing authentication behavior.
+- The changes in this pass reduce accidental secret exposure and tighten session restore behavior without broad auth-flow rewrites.
 ----------------------------------------------
 [5. Testing & QA]
 Status: Improved
 Actions Taken:
 - Audited existing test coverage and confirmed only a single component snapshot test exists today.
 - Added npm run typecheck as a fast, repeatable QA gate.
+- Added a Jest Expo test harness in jest.config.js with alias support for the TypeScript app layout.
+- Added unit tests for session parsing/expiry handling in lib/auth/__tests__/sessionStorage.test.ts.
+- Added store-level auth tests in store/__tests__/auth.test.ts covering hydrate() and signOut() against mocked persistence and membership boundaries.
+- Added unit tests for role root/profile route mapping in constants/__tests__/routes.test.ts.
+- Added persona entry-route tests in app/__tests__/index.test.tsx covering auth gating, admin web/native branching, and tenant-context redirects.
+- Updated the legacy StyledText snapshot test so it runs cleanly under the current React test renderer.
+- Executed npm test successfully after the second-pass changes.
 - Executed npm run typecheck successfully after the audit changes.
 - Ran focused file diagnostics plus a workspace error sweep.
 Remaining Gaps:
-- No unit test framework is configured for current TypeScript app logic beyond the existing legacy snapshot test.
 - No E2E, device, accessibility, or API integration tests are present.
 Notes:
-- Typecheck is now the minimum automated quality bar, but test coverage remains the largest QA gap.
+- Typecheck and Jest now cover core auth/session and entry-routing logic, but integration and device coverage remain the largest QA gaps.
 ----------------------------------------------
 [6. Architecture & Code Quality]
 Status: Improved
@@ -76,13 +85,14 @@ Notes:
 Status: Improved
 Actions Taken:
 - Reviewed package scripts, EAS configuration, and existing repo memory notes for build behavior.
-- Added a GitHub Actions workflow at .github/workflows/ci.yml to run npm ci and npm run typecheck on pushes and pull requests.
+- Added a GitHub Actions workflow at .github/workflows/ci.yml to run npm ci, npm run typecheck, and npm test on pushes and pull requests.
 - Added a durable typecheck script to package.json so local and CI validation use the same command.
+- Added a durable npm test script to package.json so local and CI validation use the same Jest entry point.
 Remaining Gaps:
-- CI currently validates type safety only; it does not run tests, Expo export, linting, or deployment checks.
+- CI does not yet run Expo export, linting, device checks, or deployment validation.
 - No release checklist automation exists for EAS build, submit, or OTA promotion.
 Notes:
-- Existing EAS configuration is usable; this pass mainly closes the missing continuous validation gap.
+- Existing EAS configuration is usable; this pass closes the missing continuous validation gap more fully by covering both types and unit tests.
 ----------------------------------------------
 [8. Compliance & App Store Requirements]
 Status: Improved
@@ -114,10 +124,13 @@ Status: Improved
 Actions Taken:
 - Added .env.example to reduce onboarding and release misconfiguration risk.
 - Added CI typecheck automation to catch regressions before release.
+- Added CI-backed unit test execution and targeted coverage for session hydration and role-route mapping.
+- Fixed persisted-session hydration so expired auth state is less likely to survive app restarts.
+- Added auth-store and app-entry routing tests to raise confidence in role-based launch behavior before device-level validation.
 - Captured the current audit state and remaining gaps in this report for launch planning.
 Remaining Gaps:
 - Launch readiness still depends on manual validation of core role-based flows, backend readiness, store assets, and support processes.
 - Demo-mode and scaffold fallbacks should be reviewed before production launch to ensure they match intended go-live behavior.
 Notes:
-- The repo is closer to operational readiness after this pass, but launch confidence is still constrained by limited automated testing and manual acceptance coverage.
+- The repo is closer to operational readiness after this pass, but launch confidence is still constrained by limited device-level and end-to-end automation.
 ----------------------------------------------

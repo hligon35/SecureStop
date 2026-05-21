@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AlertInbox } from "@/components/AlertInbox";
 import { DevRoleSwitcher } from "@/components/DevRoleSwitcher";
 import { UpdateDebugBadge } from "@/components/UpdateDebugBadge";
+import { roleProfilePath } from "@/constants/routes";
 import { useAuthStore } from "@/store/auth";
 import {
     alertVisibleToViewer,
@@ -181,13 +182,7 @@ export function AppHeader(props: { title?: string }) {
               containerColor={theme.colors.surfaceVariant}
               accessibilityLabel="Open profile"
               style={{ margin: 0, width: 34, height: 34 }}
-              onPress={() => {
-                if (role === "admin") router.push("/(admin)/(tabs)/settings");
-                else if (role === "parent")
-                  router.push("/(parent)/(tabs)/setup");
-                else if (role === "driver")
-                  router.push("/(driver)/(tabs)/setup");
-              }}
+              onPress={() => router.push(roleProfilePath(role))}
             />
           </View>
         </View>

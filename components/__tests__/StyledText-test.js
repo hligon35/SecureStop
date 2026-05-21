@@ -1,10 +1,19 @@
-import * as React from 'react';
-import renderer from 'react-test-renderer';
+import renderer from "react-test-renderer";
 
-import { MonoText } from '../StyledText';
+import { MonoText } from "../StyledText";
 
-it(`renders correctly`, () => {
-  const tree = renderer.create(<MonoText>Snapshot test!</MonoText>).toJSON();
+it(`renders correctly`, async () => {
+  let root;
+
+  await renderer.act(async () => {
+    root = renderer.create(<MonoText>Snapshot test!</MonoText>);
+  });
+
+  const tree = root.toJSON();
 
   expect(tree).toMatchSnapshot();
+
+  await renderer.act(async () => {
+    root.unmount();
+  });
 });

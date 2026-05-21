@@ -23,6 +23,25 @@ let cachedSecureStore:
 
 let secureStoreDisabled = false;
 
+export function isStoredSessionExpired(
+  session: StoredSession | undefined,
+  now = Date.now(),
+) {
+  return typeof session?.expiresAt === "number" && session.expiresAt <= now;
+}
+
+export function parseStoredSession(
+  raw: string | null | undefined,
+  now = Date.now(),
+): StoredSession | undefined {
+  if (!raw) return undefined;
+
+  const parsed = JSON.parse(raw) as StoredSession;
+  if (!parsed?.accessToken) return undefined;
+  if (isStoredSessionExpired(parsed, now)) return undefined;
+  return parsed;
+}
+
 function getWebStorage(): Storage | undefined {
   if (Platform.OS !== "web") return undefined;
   try {
@@ -121,16 +140,19 @@ export async function loadSession(): Promise<StoredSession | undefined> {
     const web = getWebStorage();
     if (web) {
       const raw = web.getItem(KEY);
-      if (!raw) return undefined;
-      const parsed = JSON.parse(raw) as StoredSession;
-      if (!parsed?.accessToken) return undefined;
+      const parsed = parseStoredSession(raw);
+      if (!parsed && raw) {
+        web.removeItem(KEY);
+      }
       return parsed;
     }
 
     const raw = (await secureGetItem(KEY)) ?? inMemorySession;
-    if (!raw) return undefined;
-    const parsed = JSON.parse(raw) as StoredSession;
-    if (!parsed?.accessToken) return undefined;
+    const parsed = parseStoredSession(raw);
+    if (!parsed && raw) {
+      const deleted = await secureDeleteItem(KEY);
+      if (!deleted) inMemorySession = null;
+    }
     return parsed;
   } catch {
     return undefined;
