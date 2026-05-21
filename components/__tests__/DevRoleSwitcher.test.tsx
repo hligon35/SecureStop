@@ -125,7 +125,7 @@ describe("DevRoleSwitcher", () => {
     return renderer.create(<DevRoleSwitcher variant="header" />);
   }
 
-  it("keeps the menu open if the anchor is pressed while already visible", async () => {
+  it("toggles the menu open and closed from the anchor", async () => {
     let root: any;
 
     await renderer.act(async () => {
@@ -139,6 +139,24 @@ describe("DevRoleSwitcher", () => {
     });
 
     expect(root.root.findByType("Menu").props.visible).toBe(true);
+
+    await renderer.act(async () => {
+      button.props.onPress();
+    });
+
+    expect(root.root.findByType("Menu").props.visible).toBe(false);
+
+    await renderer.act(async () => {
+      button.props.onPress();
+    });
+
+    expect(root.root.findByType("Menu").props.visible).toBe(true);
+
+    await renderer.act(async () => {
+      root.root.findByType("Menu").props.onDismiss();
+    });
+
+    expect(root.root.findByType("Menu").props.visible).toBe(false);
 
     await renderer.act(async () => {
       button.props.onPress();

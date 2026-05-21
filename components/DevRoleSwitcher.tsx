@@ -1,7 +1,7 @@
 import * as Location from "expo-location";
 import { usePathname, useRouter } from "expo-router";
 import * as Updates from "expo-updates";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Platform, View } from "react-native";
 import { IconButton, Menu, useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -42,6 +42,7 @@ export function DevRoleSwitcher(props?: { variant?: "floating" | "header" }) {
   const [otaStatus, setOtaStatus] = useState<
     "idle" | "checking" | "downloading" | "none" | "error"
   >("idle");
+  const suppressNextDismissRef = useRef(false);
 
   const devEnabled = typeof __DEV__ !== "undefined" ? __DEV__ : false;
   const demoFleetFlag = process.env.EXPO_PUBLIC_DEMO_FLEET;
@@ -68,19 +69,39 @@ export function DevRoleSwitcher(props?: { variant?: "floating" | "header" }) {
   // Ensure the menu never gets "stuck" across route transitions.
   useEffect(() => {
     setOpen(false);
+    suppressNextDismissRef.current = false;
   }, [pathname]);
+
+  const closeMenu = useCallback(() => {
+    suppressNextDismissRef.current = true;
+    setOpen(false);
+  }, []);
+
+  const handleDismiss = useCallback(() => {
+    if (suppressNextDismissRef.current) {
+      suppressNextDismissRef.current = false;
+      return;
+    }
+
+    setOpen(false);
+  }, []);
+
+  const handleAnchorPress = useCallback(() => {
+    suppressNextDismissRef.current = false;
+    setOpen((value) => !value);
+  }, []);
 
   const goToRole = useCallback(
     (nextRole: Role) => {
-      setOpen(false);
+      closeMenu();
       setRole(nextRole);
       router.replace(roleRootPath(nextRole));
     },
-    [router, setRole],
+    [closeMenu, router, setRole],
   );
 
   const snapGpsOnce = useCallback(async () => {
-    setOpen(false);
+    closeMenu();
     setGpsBusy(true);
     try {
       const perm = await Location.requestForegroundPermissionsAsync();
@@ -100,12 +121,12 @@ export function DevRoleSwitcher(props?: { variant?: "floating" | "header" }) {
     } finally {
       setGpsBusy(false);
     }
-  }, [setVehicleLocation]);
+  }, [closeMenu, setVehicleLocation]);
 
   const pullOtaUpdate = useCallback(async () => {
     if (!otaSupported || otaBusy) return;
 
-    setOpen(false);
+    closeMenu();
     setOtaBusy(true);
     setOtaStatus("checking");
 
@@ -125,7 +146,7 @@ export function DevRoleSwitcher(props?: { variant?: "floating" | "header" }) {
     } finally {
       setOtaBusy(false);
     }
-  }, [otaBusy, otaSupported]);
+  }, [closeMenu, otaBusy, otaSupported]);
 
   const otaMenuTitle = otaBusy
     ? otaStatus === "downloading"
@@ -142,7 +163,7 @@ export function DevRoleSwitcher(props?: { variant?: "floating" | "header" }) {
   const menu = (
     <Menu
       visible={open}
-      onDismiss={() => setOpen(false)}
+      onDismiss={handleDismiss}
       anchor={
         <IconButton
           icon="account-switch"
@@ -151,7 +172,7 @@ export function DevRoleSwitcher(props?: { variant?: "floating" | "header" }) {
           containerColor={theme.colors.surfaceVariant}
           accessibilityLabel="Developer role switcher"
           style={{ margin: 0, width: 34, height: 34 }}
-          onPress={() => setOpen(true)}
+          onPress={handleAnchorPress}
         />
       }
     >
@@ -174,7 +195,7 @@ export function DevRoleSwitcher(props?: { variant?: "floating" | "header" }) {
         disabled={demoFleetMode.isLocked}
         onPress={() => {
           if (demoFleetMode.isLocked) return;
-          setOpen(false);
+          closeMenu();
           setDemoFleetOverride(!demoModeEnabled);
         }}
         leadingIcon={
