@@ -38,6 +38,7 @@ export default function AdminTabsLayout() {
 
       <View style={{ flex: 1 }}>
         <Tabs
+          key={wideLayout ? "admin-tabs-wide" : "admin-tabs-compact"}
           screenOptions={{
             headerShown: false,
             tabBarStyle: wideLayout

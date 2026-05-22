@@ -428,8 +428,8 @@ export default function AdminDriversScreen() {
                                 : theme.colors.surface,
                               alignItems: "center",
                               justifyContent: "center",
-                              paddingHorizontal: 6,
-                              paddingVertical: 6,
+                              paddingHorizontal: 2,
+                              paddingVertical: 2,
                               gap: 6,
                             }}
                           >
