@@ -429,7 +429,7 @@ export default function AdminDriversScreen() {
                               alignItems: "center",
                               justifyContent: "center",
                               paddingHorizontal: 6,
-                              paddingVertical: 60,
+                              paddingVertical: 6,
                               gap: 6,
                             }}
                           >

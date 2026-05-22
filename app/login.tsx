@@ -2,20 +2,20 @@ import { Link, router } from "expo-router";
 import { useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
 import {
-    Button,
-    Card,
-    Divider,
-    IconButton,
-    Snackbar,
-    Text,
-    TextInput,
-    useTheme,
+  Button,
+  Card,
+  Divider,
+  IconButton,
+  Snackbar,
+  Text,
+  TextInput,
+  useTheme,
 } from "react-native-paper";
 
 import { ExternalLink } from "@/components/ExternalLink";
 import {
-    DEV_ACCOUNT_EMAIL,
-    DEV_ACCOUNT_PASSWORD,
+  DEV_ACCOUNT_EMAIL,
+  DEV_ACCOUNT_PASSWORD,
 } from "@/constants/devAccount";
 import { ROLE_LABEL, type Role } from "@/constants/roles";
 import { signInWithOidcInteractive } from "@/lib/auth/oidc";
@@ -260,6 +260,8 @@ export default function LoginScreen() {
                 style={{
                   flexDirection: "row",
                   justifyContent: "center",
+                  alignItems: "center",
+                  gap: 4,
                   marginTop: 4,
                 }}
               >
@@ -270,9 +272,12 @@ export default function LoginScreen() {
                   Need an account?
                 </Text>
                 <Link href="/request-access" asChild>
-                  <Button mode="text" compact>
+                  <Text
+                    variant="bodySmall"
+                    style={{ color: theme.colors.primary }}
+                  >
                     Request access
-                  </Button>
+                  </Text>
                 </Link>
               </View>
             </Card.Content>
