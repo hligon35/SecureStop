@@ -226,6 +226,8 @@ export default function AdminFleetScreen() {
   const demoFleet = demoFleetMode.enabled;
 
   const { width } = useWindowDimensions();
+  const wideLayout = width >= 1024;
+  const filterModalWidth = Math.min(Math.max(width - 32, 0), 360);
   const [selectedVehicleId, setSelectedVehicleId] = useState<
     string | undefined
   >(undefined);
@@ -235,7 +237,13 @@ export default function AdminFleetScreen() {
   const [fleetFilter, setFleetFilter] = useState<
     "all" | "ok" | "delay" | "out"
   >("all");
+  const [mainPaneWidth, setMainPaneWidth] = useState(width);
   const chatAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!wideLayout) return;
+    setDetailsOpen(false);
+  }, [wideLayout]);
 
   useEffect(() => {
     Animated.timing(chatAnim, {
@@ -267,7 +275,7 @@ export default function AdminFleetScreen() {
   const cardWidth = 78;
   const gap = 8;
   const horizontalPadding = 12;
-  const availableWidth = Math.max(1, width - horizontalPadding * 2);
+  const availableWidth = Math.max(1, mainPaneWidth - horizontalPadding * 2);
   const numColumns = Math.max(
     2,
     Math.floor((availableWidth + gap) / (cardWidth + gap)),
@@ -529,180 +537,461 @@ export default function AdminFleetScreen() {
     [fleet, selectedVehicleId],
   );
 
-  return (
-    <View style={{ flex: 1, paddingTop: 6 }}>
-      <View
-        style={{
-          paddingHorizontal: 16,
-          paddingBottom: 6,
-          alignItems: "stretch",
-          gap: 6,
-        }}
-      >
+  const detailsContent = selectedVehicle ? (
+    <Card style={{ overflow: "visible" }}>
+      <Card.Content>
         <View
           style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <Text variant="titleSmall" style={{ textAlign: "left" }}>
-            Fleet Overview
-          </Text>
-
-          <View style={{ position: "relative" }}>
-            <IconButton
-              icon="filter-variant"
-              mode="contained"
-              size={18}
-              containerColor={theme.colors.surfaceVariant}
-              accessibilityLabel="Filter fleet overview"
-              style={{ margin: 0, width: 34, height: 34 }}
-              onPress={() => setFilterOpen(true)}
-            />
-            {fleetFilter !== "all" ? (
-              <Badge
-                size={10}
-                style={{
-                  position: "absolute",
-                  right: 2,
-                  top: 2,
-                  backgroundColor: theme.colors.primary,
-                }}
-              />
-            ) : null}
-          </View>
-        </View>
-        {demoFleet ? (
-          <View style={{ gap: 4 }}>
-            <Chip compact icon="presentation-play">
-              {demoFleetMode.isLocked
-                ? "Fleet demo locked by environment"
-                : "Fleet demo running"}
-            </Chip>
-            <Text
-              variant="bodySmall"
-              style={{ color: theme.colors.onSurfaceVariant }}
-            >
-              Scripted cycle: on-route, delayed, depot, and message states.
-            </Text>
-          </View>
-        ) : null}
-        <Divider style={{ alignSelf: "stretch" }} />
-      </View>
-
-      <Portal>
-        <Modal
-          visible={filterOpen}
-          onDismiss={() => setFilterOpen(false)}
-          contentContainerStyle={{
-            margin: 16,
-            borderRadius: 12,
-            overflow: "hidden",
-            backgroundColor: theme.colors.surface,
+            position: "relative",
+            paddingLeft: 12,
+            paddingRight: 56,
+            paddingBottom: 4,
+            minHeight: 14,
           }}
         >
           <View
             style={{
-              paddingHorizontal: 16,
-              paddingTop: 14,
-              paddingBottom: 12,
-              gap: 10,
+              position: "absolute",
+              left: -24,
+              top: -24,
+              width: 36,
+              height: 36,
+              zIndex: 3,
+              elevation: 3,
             }}
           >
+            <Image
+              source={BUS_ICON}
+              style={{ width: 36, height: 36, resizeMode: "contain" }}
+            />
             <View
               style={{
-                flexDirection: "row",
+                position: "absolute",
+                left: 0,
+                right: 0,
+                top: 16,
                 alignItems: "center",
-                justifyContent: "space-between",
               }}
             >
-              <Text variant="titleSmall">Filter fleet</Text>
-              <Button
-                compact
-                onPress={() => {
-                  setFleetFilter("all");
-                }}
-              >
-                Clear
-              </Button>
+              <Text variant="labelSmall" style={{ color: "black" }}>
+                {selectedVehicle.badgeNumber}
+              </Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 12,
+            }}
+          >
+            <Text variant="titleSmall">Details</Text>
+
+            <View style={{ position: "relative" }}>
+              <IconButton
+                icon="message-text"
+                mode="contained"
+                size={18}
+                style={{ margin: 0 }}
+                containerColor={theme.colors.surfaceVariant}
+                accessibilityLabel={
+                  chatOpen ? "Close messages" : "Open messages"
+                }
+                onPress={() => setChatOpen((v) => !v)}
+              />
+              {selectedVehicleId &&
+              vehicleHasWaitingAlert(selectedVehicleId) ? (
+                <View
+                  style={{
+                    position: "absolute",
+                    top: 2,
+                    right: 2,
+                    width: 8,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: theme.colors.error,
+                  }}
+                />
+              ) : null}
             </View>
 
-            <Divider />
+            <IconButton
+              icon="map-marker-path"
+              mode="contained"
+              size={18}
+              style={{ margin: 0 }}
+              containerColor={theme.colors.surfaceVariant}
+              accessibilityLabel="Open routes"
+              onPress={() => {
+                setDetailsOpen(false);
+                router.push({
+                  pathname: "/(admin)/(tabs)/routes",
+                  params: { vehicleId: selectedVehicle.id },
+                });
+              }}
+            />
+          </View>
 
-            <View style={{ gap: 8 }}>
+          <View
+            style={{
+              position: "absolute",
+              right: -32,
+              top: -32,
+              zIndex: 3,
+              elevation: 3,
+            }}
+          >
+            <IconButton
+              icon="close"
+              mode="contained"
+              containerColor={theme.colors.surfaceVariant}
+              accessibilityLabel="Close details"
+              onPress={() => {
+                setDetailsOpen(false);
+                setSelectedVehicleId(undefined);
+                setChatOpen(false);
+              }}
+            />
+          </View>
+        </View>
+
+        <View style={{ flexDirection: "row", gap: 8, marginTop: 6 }}>
+          <Card mode="outlined" style={{ flex: 1 }}>
+            <Card.Content style={{ paddingVertical: 8 }}>
+              <Text
+                variant="labelSmall"
+                style={{ color: theme.colors.onSurfaceVariant }}
+              >
+                Driver
+              </Text>
+              <Text numberOfLines={1}>{selectedVehicle.driverName}</Text>
+            </Card.Content>
+          </Card>
+
+          <Card mode="outlined" style={{ flex: 1 }}>
+            <Card.Content style={{ paddingVertical: 8 }}>
               <Text
                 variant="labelSmall"
                 style={{ color: theme.colors.onSurfaceVariant }}
               >
                 Status
               </Text>
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                <Chip
-                  selected={fleetFilter === "all"}
-                  onPress={() => setFleetFilter("all")}
+              <Text numberOfLines={1}>{selectedVehicle.status}</Text>
+            </Card.Content>
+          </Card>
+
+          <Card mode="outlined" style={{ flex: 1 }}>
+            <Card.Content style={{ paddingVertical: 8 }}>
+              <Text
+                variant="labelSmall"
+                style={{ color: theme.colors.onSurfaceVariant }}
+              >
+                Delay
+              </Text>
+              <Text numberOfLines={1}>
+                {selectedVehicle.delayMinutes > 0
+                  ? `${selectedVehicle.delayMinutes} min`
+                  : "On time"}
+              </Text>
+            </Card.Content>
+          </Card>
+        </View>
+
+        {chatOpen ? (
+          <View style={{ marginTop: 10 }}>
+            <Card mode="outlined">
+              <Card.Content style={{ paddingVertical: 10 }}>
+                <Text
+                  variant="labelSmall"
+                  style={{ color: theme.colors.onSurfaceVariant }}
                 >
-                  All
-                </Chip>
-                <Chip
-                  selected={fleetFilter === "ok"}
-                  onPress={() => setFleetFilter("ok")}
-                >
-                  OK
-                </Chip>
-                <Chip
-                  selected={fleetFilter === "delay"}
-                  onPress={() => setFleetFilter("delay")}
-                >
-                  Delayed
-                </Chip>
-                <Chip
-                  selected={fleetFilter === "out"}
-                  onPress={() => setFleetFilter("out")}
-                >
-                  Out
-                </Chip>
+                  Latest message
+                </Text>
+                <Text variant="bodyMedium" style={{ marginTop: 4 }}>
+                  {latestMessageForSelected
+                    ? `${latestMessageForSelected.title} — ${latestMessageForSelected.body}`
+                    : "No messages for this bus yet."}
+                </Text>
+              </Card.Content>
+            </Card>
+
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "flex-end",
+                gap: 8,
+                marginTop: 10,
+              }}
+            >
+              <View style={{ flex: 1 }}>
+                <TextInput
+                  mode="outlined"
+                  label="Reply"
+                  value={replyText}
+                  onChangeText={setReplyText}
+                  multiline
+                />
               </View>
+              <IconButton
+                icon="send"
+                mode="contained"
+                containerColor={theme.colors.surfaceVariant}
+                accessibilityLabel="Send reply"
+                onPress={async () => {
+                  const body = replyText.trim();
+                  if (!body) return;
+                  await sendAdminBroadcast({
+                    title: selectedVehicleId
+                      ? `Reply to ${selectedVehicleId}`
+                      : "Reply",
+                    body,
+                    recipients: "school",
+                    vehicleId: selectedVehicleId,
+                  });
+                  setReplyText("");
+                }}
+              />
             </View>
-
-            <Button mode="contained" onPress={() => setFilterOpen(false)}>
-              Done
-            </Button>
           </View>
-        </Modal>
-      </Portal>
+        ) : null}
+      </Card.Content>
+    </Card>
+  ) : null;
 
-      <FlatList
-        data={filteredGridData}
-        key={numColumns}
-        numColumns={numColumns}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{
-          paddingHorizontal: horizontalPadding,
-          paddingVertical: 16,
-          gap,
-          paddingBottom: detailsOpen ? (chatOpen ? 260 : 108) : 16,
+  return (
+    <View
+      style={{
+        flex: 1,
+        paddingTop: 6,
+        flexDirection: wideLayout ? "row" : "column",
+      }}
+    >
+      <View
+        style={{ flex: 1 }}
+        onLayout={(event) => {
+          const nextWidth = Math.max(
+            1,
+            Math.floor(event.nativeEvent.layout.width),
+          );
+          if (nextWidth !== mainPaneWidth) {
+            setMainPaneWidth(nextWidth);
+          }
         }}
-        columnWrapperStyle={{ gap }}
-        renderItem={({ item }) => (
-          <VehicleCard
-            id={item.id}
-            badgeNumber={item.badgeNumber}
-            selected={selectedVehicleId === item.id}
-            mode={item.mode}
-            colors={indicatorColors}
-            cardWidth={cardWidth}
-            busIcon={BUS_ICON}
-            onPress={() => {
-              setSelectedVehicleId(item.id);
-              setDetailsOpen(true);
-              setChatOpen(false);
+      >
+        <View
+          style={{
+            paddingHorizontal: 16,
+            paddingBottom: 6,
+            alignItems: "stretch",
+            gap: 6,
+          }}
+        >
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
             }}
-          />
-        )}
-      />
+          >
+            <Text variant="titleSmall" style={{ textAlign: "left" }}>
+              Fleet Overview
+            </Text>
 
-      {detailsOpen && selectedVehicleId && selectedVehicle ? (
+            <View style={{ position: "relative" }}>
+              <IconButton
+                icon="filter-variant"
+                mode="contained"
+                size={18}
+                containerColor={theme.colors.surfaceVariant}
+                accessibilityLabel="Filter fleet overview"
+                style={{ margin: 0, width: 34, height: 34 }}
+                onPress={() => setFilterOpen(true)}
+              />
+              {fleetFilter !== "all" ? (
+                <Badge
+                  size={10}
+                  style={{
+                    position: "absolute",
+                    right: 2,
+                    top: 2,
+                    backgroundColor: theme.colors.primary,
+                  }}
+                />
+              ) : null}
+            </View>
+          </View>
+          {demoFleet ? (
+            <View style={{ gap: 4 }}>
+              <Chip compact icon="presentation-play">
+                {demoFleetMode.isLocked
+                  ? "Fleet demo locked by environment"
+                  : "Fleet demo running"}
+              </Chip>
+              <Text
+                variant="bodySmall"
+                style={{ color: theme.colors.onSurfaceVariant }}
+              >
+                Scripted cycle: on-route, delayed, depot, and message states.
+              </Text>
+            </View>
+          ) : null}
+          <Divider style={{ alignSelf: "stretch" }} />
+        </View>
+
+        <Portal>
+          <Modal
+            visible={filterOpen}
+            onDismiss={() => setFilterOpen(false)}
+            contentContainerStyle={{
+              margin: 16,
+              width: filterModalWidth,
+              alignSelf: "center",
+              borderRadius: 12,
+              overflow: "hidden",
+              backgroundColor: theme.colors.surface,
+            }}
+          >
+            <View
+              style={{
+                paddingHorizontal: 16,
+                paddingTop: 14,
+                paddingBottom: 12,
+                gap: 10,
+              }}
+            >
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <Text variant="titleSmall">Filter fleet</Text>
+                <Button
+                  compact
+                  onPress={() => {
+                    setFleetFilter("all");
+                  }}
+                >
+                  Clear
+                </Button>
+              </View>
+
+              <Divider />
+
+              <View style={{ gap: 8 }}>
+                <Text
+                  variant="labelSmall"
+                  style={{ color: theme.colors.onSurfaceVariant }}
+                >
+                  Status
+                </Text>
+                <View
+                  style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}
+                >
+                  <Chip
+                    selected={fleetFilter === "all"}
+                    onPress={() => setFleetFilter("all")}
+                  >
+                    All
+                  </Chip>
+                  <Chip
+                    selected={fleetFilter === "ok"}
+                    onPress={() => setFleetFilter("ok")}
+                  >
+                    OK
+                  </Chip>
+                  <Chip
+                    selected={fleetFilter === "delay"}
+                    onPress={() => setFleetFilter("delay")}
+                  >
+                    Delayed
+                  </Chip>
+                  <Chip
+                    selected={fleetFilter === "out"}
+                    onPress={() => setFleetFilter("out")}
+                  >
+                    Out
+                  </Chip>
+                </View>
+              </View>
+
+              <Button mode="contained" onPress={() => setFilterOpen(false)}>
+                Done
+              </Button>
+            </View>
+          </Modal>
+        </Portal>
+
+        <FlatList
+          data={filteredGridData}
+          key={numColumns}
+          numColumns={numColumns}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={{
+            paddingHorizontal: horizontalPadding,
+            paddingVertical: 16,
+            gap,
+            paddingBottom: wideLayout
+              ? 16
+              : detailsOpen
+                ? chatOpen
+                  ? 260
+                  : 108
+                : 16,
+          }}
+          columnWrapperStyle={{ gap }}
+          renderItem={({ item }) => (
+            <VehicleCard
+              id={item.id}
+              badgeNumber={item.badgeNumber}
+              selected={selectedVehicleId === item.id}
+              mode={item.mode}
+              colors={indicatorColors}
+              cardWidth={cardWidth}
+              busIcon={BUS_ICON}
+              onPress={() => {
+                setSelectedVehicleId(item.id);
+                setChatOpen(false);
+                if (!wideLayout) {
+                  setDetailsOpen(true);
+                }
+              }}
+            />
+          )}
+        />
+      </View>
+
+      {wideLayout ? (
+        <View
+          style={{
+            width: 320,
+            borderLeftWidth: 1,
+            borderLeftColor: theme.colors.outlineVariant,
+            backgroundColor: theme.colors.surface,
+            paddingHorizontal: 14,
+            paddingVertical: 12,
+          }}
+        >
+          {selectedVehicle ? (
+            detailsContent
+          ) : (
+            <Card mode="outlined">
+              <Card.Content style={{ gap: 8 }}>
+                <Text variant="titleSmall">Details</Text>
+                <Text
+                  variant="bodySmall"
+                  style={{ color: theme.colors.onSurfaceVariant }}
+                >
+                  Select a bus from the fleet grid to inspect its driver,
+                  status, delay, and latest messages.
+                </Text>
+              </Card.Content>
+            </Card>
+          )}
+        </View>
+      ) : detailsOpen && selectedVehicleId && selectedVehicle ? (
         <Animated.View
           style={{
             position: "absolute",
@@ -719,227 +1008,7 @@ export default function AdminFleetScreen() {
             ],
           }}
         >
-          <Card style={{ overflow: "visible" }}>
-            <Card.Content>
-              <View
-                style={{
-                  position: "relative",
-                  paddingLeft: 12,
-                  paddingRight: 56,
-                  paddingBottom: 4,
-                  minHeight: 14,
-                }}
-              >
-                {/* Floating bus icon (top-left) */}
-                <View
-                  style={{
-                    position: "absolute",
-                    left: -24,
-                    top: -24,
-                    width: 36,
-                    height: 36,
-                    zIndex: 3,
-                    elevation: 3,
-                  }}
-                >
-                  <Image
-                    source={BUS_ICON}
-                    style={{ width: 36, height: 36, resizeMode: "contain" }}
-                  />
-                  {/* Bus number in the grill */}
-                  <View
-                    style={{
-                      position: "absolute",
-                      left: 0,
-                      right: 0,
-                      top: 16,
-                      alignItems: "center",
-                    }}
-                  >
-                    <Text variant="labelSmall" style={{ color: "black" }}>
-                      {selectedVehicle.badgeNumber}
-                    </Text>
-                  </View>
-                </View>
-
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 12,
-                  }}
-                >
-                  <Text variant="titleSmall">Details</Text>
-
-                  {/* Message push button w/ red indicator */}
-                  <View style={{ position: "relative" }}>
-                    <IconButton
-                      icon="message-text"
-                      mode="contained"
-                      size={18}
-                      style={{ margin: 0 }}
-                      containerColor={theme.colors.surfaceVariant}
-                      accessibilityLabel={
-                        chatOpen ? "Close messages" : "Open messages"
-                      }
-                      onPress={() => setChatOpen((v) => !v)}
-                    />
-                    {selectedVehicleId &&
-                    vehicleHasWaitingAlert(selectedVehicleId) ? (
-                      <View
-                        style={{
-                          position: "absolute",
-                          top: 2,
-                          right: 2,
-                          width: 8,
-                          height: 8,
-                          borderRadius: 4,
-                          backgroundColor: theme.colors.error,
-                        }}
-                      />
-                    ) : null}
-                  </View>
-
-                  <IconButton
-                    icon="map-marker-path"
-                    mode="contained"
-                    size={18}
-                    style={{ margin: 0 }}
-                    containerColor={theme.colors.surfaceVariant}
-                    accessibilityLabel="Open routes"
-                    onPress={() => {
-                      setDetailsOpen(false);
-                      router.push({
-                        pathname: "/(admin)/(tabs)/routes",
-                        params: { vehicleId: selectedVehicle.id },
-                      });
-                    }}
-                  />
-                </View>
-
-                {/* Floating close as a push button (top-right) */}
-                <View
-                  style={{
-                    position: "absolute",
-                    right: -32,
-                    top: -32,
-                    zIndex: 3,
-                    elevation: 3,
-                  }}
-                >
-                  <IconButton
-                    icon="close"
-                    mode="contained"
-                    containerColor={theme.colors.surfaceVariant}
-                    accessibilityLabel="Close details"
-                    onPress={() => setDetailsOpen(false)}
-                  />
-                </View>
-              </View>
-
-              {/* 1x3 card grid: Driver / Status / Delay */}
-              <View style={{ flexDirection: "row", gap: 8, marginTop: 6 }}>
-                <Card mode="outlined" style={{ flex: 1 }}>
-                  <Card.Content style={{ paddingVertical: 8 }}>
-                    <Text
-                      variant="labelSmall"
-                      style={{ color: theme.colors.onSurfaceVariant }}
-                    >
-                      Driver
-                    </Text>
-                    <Text numberOfLines={1}>{selectedVehicle.driverName}</Text>
-                  </Card.Content>
-                </Card>
-
-                <Card mode="outlined" style={{ flex: 1 }}>
-                  <Card.Content style={{ paddingVertical: 8 }}>
-                    <Text
-                      variant="labelSmall"
-                      style={{ color: theme.colors.onSurfaceVariant }}
-                    >
-                      Status
-                    </Text>
-                    <Text numberOfLines={1}>{selectedVehicle.status}</Text>
-                  </Card.Content>
-                </Card>
-
-                <Card mode="outlined" style={{ flex: 1 }}>
-                  <Card.Content style={{ paddingVertical: 8 }}>
-                    <Text
-                      variant="labelSmall"
-                      style={{ color: theme.colors.onSurfaceVariant }}
-                    >
-                      Delay
-                    </Text>
-                    <Text numberOfLines={1}>
-                      {selectedVehicle.delayMinutes > 0
-                        ? `${selectedVehicle.delayMinutes} min`
-                        : "On time"}
-                    </Text>
-                  </Card.Content>
-                </Card>
-              </View>
-
-              {/* Chat drawer */}
-              {chatOpen ? (
-                <View style={{ marginTop: 10 }}>
-                  <Card mode="outlined">
-                    <Card.Content style={{ paddingVertical: 10 }}>
-                      <Text
-                        variant="labelSmall"
-                        style={{ color: theme.colors.onSurfaceVariant }}
-                      >
-                        Latest message
-                      </Text>
-                      <Text variant="bodyMedium" style={{ marginTop: 4 }}>
-                        {latestMessageForSelected
-                          ? `${latestMessageForSelected.title} — ${latestMessageForSelected.body}`
-                          : "No messages for this bus yet."}
-                      </Text>
-                    </Card.Content>
-                  </Card>
-
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "flex-end",
-                      gap: 8,
-                      marginTop: 10,
-                    }}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <TextInput
-                        mode="outlined"
-                        label="Reply"
-                        value={replyText}
-                        onChangeText={setReplyText}
-                        multiline
-                      />
-                    </View>
-                    <IconButton
-                      icon="send"
-                      mode="contained"
-                      containerColor={theme.colors.surfaceVariant}
-                      accessibilityLabel="Send reply"
-                      onPress={async () => {
-                        const body = replyText.trim();
-                        if (!body) return;
-                        await sendAdminBroadcast({
-                          title: selectedVehicleId
-                            ? `Reply to ${selectedVehicleId}`
-                            : "Reply",
-                          body,
-                          recipients: "school",
-                          vehicleId: selectedVehicleId,
-                        });
-                        setReplyText("");
-                      }}
-                    />
-                  </View>
-                </View>
-              ) : null}
-            </Card.Content>
-          </Card>
+          {detailsContent}
         </Animated.View>
       ) : null}
     </View>
