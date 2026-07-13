@@ -2,11 +2,30 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 function getGoogleMapsApiKey(): string | undefined {
-  // Preferred: Expo public env var (works on web + native)
-  const fromEnv = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
-  if (typeof fromEnv === 'string' && fromEnv.trim().length > 0) return fromEnv.trim();
+  const runtimeConfig = (globalThis as {
+    __SECURESTOP_RUNTIME_CONFIG__?: { googleMapsApiKey?: unknown };
+  }).__SECURESTOP_RUNTIME_CONFIG__;
+  const fromRuntimeConfig = runtimeConfig?.googleMapsApiKey;
+  if (typeof fromRuntimeConfig === 'string' && fromRuntimeConfig.trim().length > 0) {
+    return fromRuntimeConfig.trim();
+  }
 
-  // Fallback: app.json -> expo.extra.googleMapsApiKey
+  const fromMeta =
+    typeof document !== 'undefined'
+      ? document
+          .querySelector('meta[name="securestop-google-maps-api-key"]')
+          ?.getAttribute('content')
+      : undefined;
+  if (typeof fromMeta === 'string' && fromMeta.trim().length > 0) {
+    return fromMeta.trim();
+  }
+
+  // Native builds can still read from Expo config. Web cannot keep a browser API key secret
+  // once it is compiled into a static bundle, so web only uses runtime injection above.
+  if (Platform.OS === 'web') {
+    return undefined;
+  }
+
   const extra = (Constants.expoConfig?.extra ?? {}) as Record<string, unknown>;
   const fromExtra = extra.googleMapsApiKey;
   if (typeof fromExtra === 'string' && fromExtra.trim().length > 0) return fromExtra.trim();

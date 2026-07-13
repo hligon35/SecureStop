@@ -1,16 +1,12 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, View, useWindowDimensions } from "react-native";
-import { Avatar, Card, Divider, Text, useTheme } from "react-native-paper";
+import { Avatar, Card, Divider, Menu, Text, useTheme } from "react-native-paper";
 
 import { useAdminRegistryStore } from "@/store/adminRegistry";
 import { useAuthStore } from "@/store/auth";
 
 const DRIVERS_WIDE_BREAKPOINT = 1024;
-const DIRECTORY_PANEL_WIDTH = 304;
-
-type DriverDetailSection = "driving-record" | "blank-one" | "blank-two";
-
 function initialsFromName(name: string) {
   const initials = name
     .split(" ")
@@ -48,8 +44,7 @@ export default function AdminDriversScreen() {
   const [selectedDriverId, setSelectedDriverId] = useState<
     string | undefined
   >();
-  const [activeDetailSection, setActiveDetailSection] =
-    useState<DriverDetailSection>("driving-record");
+  const [directoryMenuVisible, setDirectoryMenuVisible] = useState(false);
 
   useEffect(() => {
     if (!tenantId) return;
@@ -101,40 +96,8 @@ export default function AdminDriversScreen() {
       : "Off clock"
     : "—";
 
-  const detailButtons: Array<{
-    key: DriverDetailSection;
-    label: string;
-    icon: React.ComponentProps<typeof MaterialCommunityIcons>["name"];
-  }> = [
-    {
-      key: "driving-record",
-      label: "Driving record",
-      icon: "card-account-details-outline",
-    },
-    {
-      key: "blank-one",
-      label: "Blank 1",
-      icon: "file-document-outline",
-    },
-    {
-      key: "blank-two",
-      label: "Blank 2",
-      icon: "clipboard-text-outline",
-    },
-  ];
-
-  const detailButtonWidth = wideLayout ? 112 : 96;
-
-  const detailSectionTitle =
-    activeDetailSection === "driving-record"
-      ? "Driving Record"
-      : activeDetailSection === "blank-one"
-        ? "Blank 1"
-        : "Blank 2";
-
   const detailSectionContent = selectedDriver ? (
-    activeDetailSection === "driving-record" ? (
-      <>
+    <>
         <View
           style={{
             flexDirection: "row",
@@ -211,127 +174,8 @@ export default function AdminDriversScreen() {
             drivers.
           </Text>
         </View>
-      </>
-    ) : activeDetailSection === "blank-one" ? (
-      <>
-        <Card mode="outlined">
-          <Card.Content style={{ gap: 6 }}>
-            <Text variant="titleSmall">Blank 1</Text>
-            <Text variant="bodyMedium">
-              This panel is reserved for an additional driver profile view.
-            </Text>
-          </Card.Content>
-        </Card>
-        <View style={{ gap: 8 }}>
-          <Text
-            variant="labelSmall"
-            style={{ color: theme.colors.onSurfaceVariant }}
-          >
-            Planned content
-          </Text>
-          <Text variant="bodyMedium">
-            Add any future compliance, training, or employment data here without
-            changing the credential card above.
-          </Text>
-        </View>
-      </>
-    ) : (
-      <>
-        <Card mode="outlined">
-          <Card.Content style={{ gap: 6 }}>
-            <Text variant="titleSmall">Blank 2</Text>
-            <Text variant="bodyMedium">
-              This panel is reserved for another driver-focused detail view.
-            </Text>
-          </Card.Content>
-        </Card>
-        <View style={{ gap: 8 }}>
-          <Text
-            variant="labelSmall"
-            style={{ color: theme.colors.onSurfaceVariant }}
-          >
-            Planned content
-          </Text>
-          <Text variant="bodyMedium">
-            Use this space for incident history, shift notes, or any other
-            secondary directory details.
-          </Text>
-        </View>
-      </>
-    )
+    </>
   ) : null;
-
-  const directoryList = (
-    <View style={{ gap: 8 }}>
-      {drivers.map((driver) => {
-        const active = driver.id === selectedDriverId;
-
-        return (
-          <Pressable
-            key={driver.id}
-            accessibilityRole="button"
-            accessibilityLabel={`Open ${driver.name}`}
-            onPress={() => setSelectedDriverId(driver.id)}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 10,
-              borderRadius: 16,
-              paddingHorizontal: 10,
-              paddingVertical: 10,
-              backgroundColor: active
-                ? theme.colors.secondaryContainer
-                : theme.colors.surface,
-              borderWidth: 1,
-              borderColor: active
-                ? theme.colors.primary
-                : theme.colors.outlineVariant,
-            }}
-          >
-            <Avatar.Text
-              size={42}
-              label={initialsFromName(driver.name)}
-              style={{
-                backgroundColor: active
-                  ? theme.colors.primaryContainer
-                  : theme.colors.surfaceVariant,
-              }}
-              color={
-                active
-                  ? theme.colors.onPrimaryContainer
-                  : theme.colors.onSurfaceVariant
-              }
-            />
-
-            <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-              <Text
-                variant="titleSmall"
-                numberOfLines={1}
-                style={{
-                  color: active
-                    ? theme.colors.onSecondaryContainer
-                    : theme.colors.onSurface,
-                }}
-              >
-                {driver.name}
-              </Text>
-              <Text
-                variant="bodySmall"
-                numberOfLines={1}
-                style={{
-                  color: active
-                    ? theme.colors.onSecondaryContainer
-                    : theme.colors.onSurfaceVariant,
-                }}
-              >
-                {driver.active ? "Active in directory" : "Inactive / off clock"}
-              </Text>
-            </View>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
 
   return (
     <View
@@ -349,8 +193,68 @@ export default function AdminDriversScreen() {
           paddingBottom: 16,
         }}
       >
-        <View style={{ gap: 4, paddingBottom: 8 }}>
-          <Text variant="titleSmall">Driver Directory</Text>
+        <View style={{ gap: 8, paddingBottom: 8 }}>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 16,
+            }}
+          >
+            <Text variant="titleSmall">Driver Directory</Text>
+            {hydrated && tenantId && drivers.length > 0 ? (
+              <Menu
+                visible={directoryMenuVisible}
+                onDismiss={() => setDirectoryMenuVisible(false)}
+                anchor={
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Select a driver"
+                    accessibilityState={{ expanded: directoryMenuVisible }}
+                    onPress={() => setDirectoryMenuVisible(true)}
+                    style={{
+                      minWidth: wideLayout ? 240 : 176,
+                      maxWidth: wideLayout ? 320 : 220,
+                      borderWidth: 1,
+                      borderColor: theme.colors.outline,
+                      borderRadius: 10,
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 12,
+                      backgroundColor: theme.colors.surface,
+                    }}
+                  >
+                    <Text variant="labelLarge" numberOfLines={1}>
+                      {selectedDriver?.name ?? "Select driver"}
+                    </Text>
+                    <MaterialCommunityIcons
+                      name="chevron-down"
+                      size={20}
+                      color={theme.colors.onSurfaceVariant}
+                    />
+                  </Pressable>
+                }
+              >
+                {drivers.map((driver) => (
+                  <Menu.Item
+                    key={driver.id}
+                    title={driver.name}
+                    leadingIcon={
+                      driver.id === selectedDriverId ? "check" : "account-outline"
+                    }
+                    onPress={() => {
+                      setSelectedDriverId(driver.id);
+                      setDirectoryMenuVisible(false);
+                    }}
+                  />
+                ))}
+              </Menu>
+            ) : null}
+          </View>
           <Text
             variant="bodySmall"
             style={{ color: theme.colors.onSurfaceVariant }}
@@ -386,83 +290,15 @@ export default function AdminDriversScreen() {
           </Card>
         ) : (
           <View style={{ flex: 1, gap: 12, paddingTop: 12 }}>
-            {!wideLayout ? (
-              <Card mode="outlined">
-                <Card.Content style={{ gap: 10 }}>
-                  <Text variant="titleSmall">Directory</Text>
-                  {directoryList}
-                </Card.Content>
-              </Card>
-            ) : null}
-
             {selectedDriver ? (
               <>
                 <View style={{ gap: 20 }}>
                   <View
                     style={{
                       flexDirection: "row",
-                      gap: 16,
                       alignItems: "flex-start",
                     }}
                   >
-                    <View style={{ width: detailButtonWidth, gap: 10 }}>
-                      {detailButtons.map((button) => {
-                        const active = button.key === activeDetailSection;
-                        const labelLines = button.label.split(" ");
-
-                        return (
-                          <Pressable
-                            key={button.key}
-                            accessibilityRole="button"
-                            accessibilityLabel={button.label}
-                            onPress={() => setActiveDetailSection(button.key)}
-                            style={{
-                              minHeight: detailButtonWidth,
-                              borderRadius: 22,
-                              borderWidth: 1,
-                              borderColor: active
-                                ? theme.colors.primary
-                                : theme.colors.outlineVariant,
-                              backgroundColor: active
-                                ? theme.colors.secondaryContainer
-                                : theme.colors.surface,
-                              alignItems: "center",
-                              justifyContent: "center",
-                              paddingHorizontal: 2,
-                              paddingVertical: 2,
-                              gap: 6,
-                            }}
-                          >
-                            <MaterialCommunityIcons
-                              name={button.icon}
-                              size={24}
-                              color={
-                                active
-                                  ? theme.colors.onSecondaryContainer
-                                  : theme.colors.onSurfaceVariant
-                              }
-                            />
-                            <View style={{ alignItems: "center" }}>
-                              {labelLines.map((line) => (
-                                <Text
-                                  key={`${button.key}-${line}`}
-                                  variant="labelMedium"
-                                  style={{
-                                    textAlign: "center",
-                                    color: active
-                                      ? theme.colors.onSecondaryContainer
-                                      : theme.colors.onSurface,
-                                  }}
-                                >
-                                  {line}
-                                </Text>
-                              ))}
-                            </View>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Card
                         mode="outlined"
@@ -552,6 +388,39 @@ export default function AdminDriversScreen() {
                                   </Text>
                                 </Card.Content>
                               </Card>
+                              <Pressable
+                                accessibilityRole="button"
+                                accessibilityLabel="Driving record"
+                                style={{
+                                  width: "100%",
+                                  minHeight: 48,
+                                  borderRadius: 12,
+                                  borderWidth: 1,
+                                  borderColor: theme.colors.primary,
+                                  backgroundColor:
+                                    theme.colors.secondaryContainer,
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  paddingHorizontal: 8,
+                                  paddingVertical: 8,
+                                  gap: 4,
+                                }}
+                              >
+                                <MaterialCommunityIcons
+                                  name="card-account-details-outline"
+                                  size={22}
+                                  color={theme.colors.onSecondaryContainer}
+                                />
+                                <Text
+                                  variant="labelMedium"
+                                  style={{
+                                    textAlign: "center",
+                                    color: theme.colors.onSecondaryContainer,
+                                  }}
+                                >
+                                  Driving record
+                                </Text>
+                              </Pressable>
                             </View>
 
                             <View style={{ flex: 1, minWidth: 0, gap: 12 }}>
@@ -703,7 +572,7 @@ export default function AdminDriversScreen() {
                       paddingTop: 8,
                     }}
                   >
-                    <Text variant="titleSmall">{detailSectionTitle}</Text>
+                    <Text variant="titleSmall">Driving Record</Text>
                     <ScrollView
                       showsVerticalScrollIndicator={false}
                       contentContainerStyle={{
@@ -722,33 +591,6 @@ export default function AdminDriversScreen() {
         )}
       </View>
 
-      {wideLayout ? (
-        <View
-          style={{
-            width: DIRECTORY_PANEL_WIDTH,
-            borderLeftWidth: 1,
-            borderLeftColor: theme.colors.outlineVariant,
-            backgroundColor: theme.colors.surface,
-            paddingHorizontal: 14,
-            paddingVertical: 12,
-            gap: 10,
-          }}
-        >
-          <Text variant="titleSmall">Drivers</Text>
-          <Text
-            variant="bodySmall"
-            style={{ color: theme.colors.onSurfaceVariant }}
-          >
-            Select a driver to open credentials and roster details.
-          </Text>
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 12 }}
-          >
-            {directoryList}
-          </ScrollView>
-        </View>
-      ) : null}
     </View>
   );
 }

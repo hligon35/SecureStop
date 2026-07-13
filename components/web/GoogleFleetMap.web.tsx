@@ -171,8 +171,9 @@ export function GoogleFleetMap(props: { height?: number; vehicleType?: VehicleIc
         <Card.Title title="Live Map" subtitle="Google Maps JS" />
         <Card.Content>
           <Text>
-            Missing Google Maps API key. Set EXPO_PUBLIC_GOOGLE_MAPS_API_KEY (recommended) or
-            expo.extra.googleMapsApiKey.
+            Missing Google Maps API key. Inject it at runtime with
+            window.__SECURESTOP_RUNTIME_CONFIG__.googleMapsApiKey or a
+            securestop-google-maps-api-key meta tag.
           </Text>
         </Card.Content>
       </Card>
