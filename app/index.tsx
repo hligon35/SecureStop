@@ -16,7 +16,7 @@ export default function Index() {
   if (!hydrated || !tenantMembershipHydrated) return null;
 
   if (!isAuthenticated) {
-    return <Redirect href="/login" />;
+    return <Redirect href={Platform.OS === "web" ? "/marketing" : "/login"} />;
   }
 
   if (role === "admin" && Platform.OS === "web") {
