@@ -82,7 +82,10 @@ export function getConfig(): AppConfig {
             id: String(t?.id ?? "").trim(),
             name: String(t?.name ?? "").trim(),
           }))
-          .filter((t) => t.id.length > 0 && t.name.length > 0);
+          .filter(
+            (t: { id: string; name: string }) =>
+              t.id.length > 0 && t.name.length > 0,
+          );
         return cleaned.length > 0
           ? cleaned
           : [{ id: "mock-school", name: "Demo School" }];
@@ -93,9 +96,9 @@ export function getConfig(): AppConfig {
 
     const pairs = tenantsRaw
       .split(",")
-      .map((s) => s.trim())
+      .map((s: string) => s.trim())
       .filter(Boolean)
-      .map((pair) => {
+      .map((pair: string) => {
         const idx = pair.indexOf(":");
         if (idx < 0) return undefined;
         const id = pair.slice(0, idx).trim();
